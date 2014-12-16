@@ -1,4 +1,4 @@
-0c5af59486fe0d33fd50a4bba67f3f1a *DESCRIPTION
+eeac591f87fff9b1751e6e77777a274b *DESCRIPTION
 4fbfd93c9f2ca97bcb1b2209522f2472 *NAMESPACE
 66cb7d18efbab747bf961c48eed75ff4 *R/aaa-globals.R
 9113bedfb1d906d7c09d8ab0feb96ace *R/augment-rprofile.R
@@ -66,46 +66,3 @@ c66dada0792ad18dadb02840cd7d486a *man/search_path.Rd
 fd6740252cdd21a2f324598aa783536f *man/status.Rd
 c58bc4bd1836a3ac371eb51042dab84a *man/unbundle.Rd
 faef568f1b2323ceec27d67c581ef552 *man/unused_packages.Rd
-175c1f87f53e45c3ba25e442f420ccd9 *tests/test-all.R
-ed5a74b6ccd53686fc405ec5fe0287b3 *tests/testthat/Ugly, but legal, path for a project (long)/bread/DESCRIPTION
-b81d577ce3cac1b01b26748ed6d4bea6 *tests/testthat/Ugly, but legal, path for a project (long)/breakfast/DESCRIPTION
-700e054b6e32a80c8dcab5dcaa4e60d5 *tests/testthat/Ugly, but legal, path for a project (long)/oatmeal/DESCRIPTION
-6c70d47d06818418de8a62ba55e89326 *tests/testthat/Ugly, but legal, path for a project (long)/packrat/DESCRIPTION
-5b5c76f4e4849a8a7ba8ee493a125dc4 *tests/testthat/Ugly, but legal, path for a project (long)/toast/DESCRIPTION
-6703df2be708a86ac3ff8da5c260738e *tests/testthat/helper-packrat.R
-08c64d163c8f7cd48abf31bcc63aba88 *tests/testthat/lockfiles/lockfile-multipleRepos.txt
-6c70d47d06818418de8a62ba55e89326 *tests/testthat/other-packages/packrat/DESCRIPTION
-ed5a74b6ccd53686fc405ec5fe0287b3 *tests/testthat/packages/bread/DESCRIPTION
-b81d577ce3cac1b01b26748ed6d4bea6 *tests/testthat/packages/breakfast/DESCRIPTION
-5977869b48003e32552044e6d002b701 *tests/testthat/packages/egg/DESCRIPTION
-700e054b6e32a80c8dcab5dcaa4e60d5 *tests/testthat/packages/oatmeal/DESCRIPTION
-6c70d47d06818418de8a62ba55e89326 *tests/testthat/packages/packrat/DESCRIPTION
-5b5c76f4e4849a8a7ba8ee493a125dc4 *tests/testthat/packages/toast/DESCRIPTION
-3965e9ae499c25646e7d6f69bae61e95 *tests/testthat/projects/carbs/flour.R
-d41d8cd98f00b204e9800998ecf8427e *tests/testthat/projects/empty/empty.R
-62df9ea384d35fe898da5942b7764ff5 *tests/testthat/projects/healthy/healthy.R
-54687329e3d77d76ba92891fedf18882 *tests/testthat/projects/libraries/library.R
-4e218e18476706dc8f388b373150ca24 *tests/testthat/projects/libraries/packrat/lib/lib-current.R
-4e218e18476706dc8f388b373150ca24 *tests/testthat/projects/libraries/packrat/library.new/lib-new.R
-1edbab3be3f017f0178c6202923cb7eb *tests/testthat/projects/sated/sated.R
-3965e9ae499c25646e7d6f69bae61e95 *tests/testthat/projects/smallbreakfast/bread.R
-62df9ea384d35fe898da5942b7764ff5 *tests/testthat/projects/smallbreakfast/oatmeal.R
-d41d8cd98f00b204e9800998ecf8427e *tests/testthat/repo-empty/src/contrib/PACKAGES
-b774a8778aee950706f36b17ae08cdee *tests/testthat/repo/src/contrib/PACKAGES
-cbe8062604cd38c0f1f2fb5fd84ffcd8 *tests/testthat/repo/src/contrib/PACKAGES.gz
-67d84e36d4ef234bed8662c268ac8a0a *tests/testthat/repo/src/contrib/bread/bread_1.0.0.tar.gz
-9d20db306fb493f02677537bd99ec223 *tests/testthat/repo/src/contrib/breakfast/breakfast_1.0.0.tar.gz
-90e8ff14f86231364c346b289778aa8b *tests/testthat/repo/src/contrib/oatmeal/oatmeal_1.0.0.tar.gz
-7f16d8965dc99e8612cdf61c1aa4a6b8 *tests/testthat/repo/src/contrib/packrat/packrat_0.0.0.tar.gz
-94983eced5faba874146ebaf8f317627 *tests/testthat/repo/src/contrib/toast/toast_1.0.0.tar.gz
-ba191963f68f11d6f8a30bf25820e136 *tests/testthat/resources/knitr-minimal.Rnw
-2b8c25c9f1730941e4183fcaabc4d5ab *tests/testthat/resources/test-sweave.Rnw
-50793c1548cca173bca370bccf9811d1 *tests/testthat/test-bundle.R
-9d9653e2dbf6a98c923ab80ec433c160 *tests/testthat/test-git.R
-f8450f3bb694379f35df378e8a4f71a7 *tests/testthat/test-hash.R
-cc5600b4355b1bf1d6a2dfca2b1adc01 *tests/testthat/test-ignores.R
-11bc0f79bbb9b5e0d6781702fcc224b9 *tests/testthat/test-local-repositories.R
-8bfbfd08fe5ca90bce4f65c6075dc8b7 *tests/testthat/test-lockfile.R
-99e83971940666b11dbe585d9bfc0816 *tests/testthat/test-packrat-mode.R
-07741b24060982219ac392aee94b6083 *tests/testthat/test-packrat.R
-7203768593b1b2b14cb38e86d40296b1 *tests/testthat/test-utils.R
