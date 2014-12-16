@@ -1,6 +1,7 @@
 getPackageDependencies <- function(pkgs,
                                    lib.loc,
-                                   available.packages = available.packages()) {
+                                   available.packages = available.packages(),
+                                   fields = c("Depends", "Imports", "LinkingTo")) {
 
   if (isPackratModeOn()) {
     lockPkgs <- readLockFilePackages(file = lockFilePath())
@@ -24,8 +25,7 @@ getPackageDependencies <- function(pkgs,
       # if it's available (dependency information in available.packages may not
       # be accurate if there's a locally installed version with a different
       # dependency list)
-      theseDeps <- combineDcfFields(as.data.frame(readDcf(pkgDescFile)),
-        c("Depends", "Imports", "LinkingTo"))
+      theseDeps <- combineDcfFields(as.data.frame(readDcf(pkgDescFile)), fields)
     } else if (isPackratModeOn() && pkg %in% names(lockPkgs)) {
       # if packrat mode is on, we'll also try reading dependencies from the lock file
       theseDeps <- lockPkgs[[pkg]]$requires
@@ -34,7 +34,7 @@ getPackageDependencies <- function(pkgs,
       # no locally installed version but we can check dependencies in the
       # package database
       theseDeps <- as.list(
-        available.packages[pkg, c("Depends", "Imports", "LinkingTo")])
+        available.packages[pkg, fields])
     } else if (pkg %in% localReposPkgs) {
       # use the version in the local repository
       allIdx <- which(localReposPkgs == pkg)
@@ -43,8 +43,7 @@ getPackageDependencies <- function(pkgs,
         warning("Package '", pkg, "' found in multiple local repositories; ",
                 "inferring dependencies from package at path:\n- ", shQuote(path))
       }
-      theseDeps <- combineDcfFields(as.data.frame(readDcf(path)),
-                                    c("Depends", "Imports", "LinkingTo"))
+      theseDeps <- combineDcfFields(as.data.frame(readDcf(path)), fields)
     } else {
       warning("Package '", pkg, "' not available in repository or locally")
       return(NULL)
@@ -65,7 +64,7 @@ getPackageDependencies <- function(pkgs,
   deps <- dropSystemPackages(deps)
 
   if (is.null(deps)) NULL
-  else sort(unique(deps))
+  else sort_c(unique(deps))
 }
 
 excludeBasePackages <- function(packages) {
@@ -95,17 +94,18 @@ dropSystemPackages <- function(packages) {
 }
 
 recursivePackageDependencies <- function(pkgs, lib.loc,
-                                         available.packages = available.packages()) {
+                                         available.packages = available.packages(),
+                                         fields = c("Depends", "Imports", "LinkingTo")) {
 
   if (!length(pkgs)) return(NULL)
-  deps <- getPackageDependencies(pkgs, lib.loc, available.packages)
+  deps <- getPackageDependencies(pkgs, lib.loc, available.packages, fields)
   depsToCheck <- setdiff(deps, pkgs)
   while (length(depsToCheck)) {
-    newDeps <- getPackageDependencies(depsToCheck, lib.loc, available.packages)
+    newDeps <- getPackageDependencies(depsToCheck, lib.loc, available.packages, fields)
     depsToCheck <- setdiff(newDeps, deps)
-    deps <- sort(unique(c(deps, newDeps)))
+    deps <- sort_c(unique(c(deps, newDeps)))
   }
   if (is.null(deps)) NULL
-  else sort(unique(deps))
+  else sort_c(unique(deps))
 
 }

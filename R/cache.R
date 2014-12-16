@@ -121,12 +121,38 @@ cachedPackages <- function(cacheDir = cacheLibDir(), fields = NULL) {
 
   lapply(pkgPaths, function(hashedPath) {
     result <- setNames(lapply(hashedPath, function(path) {
-      readDcf(file.path(path, "DESCRIPTION"), all = TRUE)
+      as.list(readDcf(file.path(path, "DESCRIPTION"), all = TRUE))
     }), basename(hashedPath))
     if (!is.null(fields)) {
       result[fields]
     } else {
       result
     }
+  })
+}
+
+listCachedPackages <- cachedPackages
+
+clearPackageCache <- function(cacheDir = cacheLibDir(), ask = TRUE) {
+
+  if (ask) {
+    message("The packrat cache directory was resolved to:\n- ",
+            shQuote(cacheDir))
+    msg <- "Are you sure you want to clear the packrat cache? [Y/n]: "
+    response <- readline(msg)
+    if (tolower(substring(response, 1, 1)) != "y") {
+      message("Operation aborted.")
+      return(invisible(NULL))
+    }
+  }
+
+  unlink(cacheDir, recursive = TRUE)
+
+}
+
+deletePackagesFromCache <- function(packages, cacheDir = cacheLibDir()) {
+  paths <- file.path(cacheDir, packages)
+  lapply(paths, function(path) {
+    unlink(path, recursive = TRUE)
   })
 }

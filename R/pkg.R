@@ -252,6 +252,7 @@ getPackageRecords <- function(pkgNames,
 inferPackageRecord <- function(df) {
   name <- as.character(df$Package)
   ver <- as.character(df$Version)
+  repos <- getOption('repos')
 
   if (!is.null(df$Repository) &&
         identical(as.character(df$Repository), 'CRAN')) {
@@ -283,6 +284,13 @@ inferPackageRecord <- function(df) {
       source = 'Bioconductor',
       version = ver
     ), class=c('packageRecord', 'Bioconductor')))
+  } else if (!is.null(df$Repository) && df$Repository %in% names(repos)) {
+    # It's a package from a custom CRAN-like repo!
+    return(structure(list(
+      name = name,
+      source = as.character(df$Repository),
+      version = ver
+    ), class=c("packageRecord", "CustomCRANLikeRepository")))
   } else if (identical(as.character(df$InstallSource), "source")) {
     # It's a local source package!
     return(structure(list(
@@ -297,11 +305,17 @@ inferPackageRecord <- function(df) {
     return(NULL)
   } else {
 
-    # Don't warn if this is an R package being managed by packrat
-    if (file.exists("DESCRIPTION")) {
-      pkgName <- unname(readDcf("DESCRIPTION")[, "Package"])
-    } else {
-      pkgName <- NULL
+    # Don't warn if this is an R package being managed by packrat.
+    # NOTE: Not all projects with DESCRIPTION files are R packages!
+    pkgName <- NULL
+    if (isPackratModeOn()) {
+      projectPath <- .packrat_mutables$get("project")
+      if (!is.null(projectPath) && isRPackage(projectPath)) {
+        pkgName <- tryCatch(
+          unname(readDcf(file.path(projectPath, "DESCRIPTION"))[, "Package"]),
+          error = function(e) NULL
+        )
+      }
     }
 
     if (!identical(pkgName, name)) {
@@ -444,7 +458,7 @@ flattenPackageRecords <- function(packageRecords, depInfo = FALSE, sourcePath = 
     }
   }
   visit(packageRecords)
-  lapply(sort(ls(visited)), function(name) {
+  lapply(sort_c(ls(visited)), function(name) {
     visited[[name]]
   })
 }

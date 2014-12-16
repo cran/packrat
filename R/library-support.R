@@ -11,13 +11,28 @@ symlinkSystemPackages <- function(project = NULL) {
   ## Make a directory where we can symlink these libraries
   libRdir <- libRdir(project = project)
 
-  ## We bash any old symlinks that were there already and regenerate
-  ## them if necessary (this is an inexpensive process so we don't feel
-  ## too badly)
+  ## Only bash the old symlinks if the version of R running is not
+  ## equal to the R version of 'base' in lib-R.
   if (file.exists(libRdir)) {
-    unlink(libRdir, recursive = TRUE)
+    ## Get the DESCRIPTION for 'base'
+    baseDescriptionPath <- file.path(libRdir, "base", "DESCRIPTION")
+    if (file.exists(baseDescriptionPath)) {
+      tryCatch({
+        DESCRIPTION <- readDcf(baseDescriptionPath, all = TRUE)
+        libRVersion <- package_version(DESCRIPTION$Version)
+        rVersion <- getRversion()
+        if (libRVersion != rVersion) {
+          message("Updating system packages ('", libRVersion, "' -> '", rVersion, "')")
+          unlink(libRdir, recursive = TRUE)
+        }
+      }, error = function(e) {
+        warning("Unable to read DESCRIPTION file associated with 'base' package")
+      })
+    }
   }
   dir.create(libRdir, recursive = TRUE, showWarnings = FALSE)
+
+
 
   ## Perform the symlinking -- we symlink individual packages because we don't
   ## want to capture any user libraries that may have been installed in the 'system'
@@ -66,11 +81,15 @@ symlinkExternalPackages <- function(project = NULL) {
   # Find the user libraries -- if packrat mode is off, this is presumedly
   # just the .libPaths(); if we're in packrat mode we have to ask packrat
   # for those libraries
-  if (isPackratModeOn()) {
+  lib.loc <- NULL
+  if (isPackratModeOn())
     lib.loc <- .packrat_mutables$get("origLibPaths")
-  } else {
+
+  ## Although this shouldn't occur in practice, there can be intermediate states
+  ## where e.g. packrat mode is 'on' but this state has been lost -- .libPaths()
+  ## is usually where we want to look for external packages, anyhow
+  if (!length(lib.loc))
     lib.loc <- .libPaths()
-  }
 
   # Get the external packages as well as their dependencies (these need
   # to be symlinked in so that imports and so on can be correctly resolved)
@@ -84,14 +103,16 @@ symlinkExternalPackages <- function(project = NULL) {
   allPkgs <- union(external.packages, pkgDeps)
 
   # Get the locations of these packages within the supplied lib.loc
-  loc <- setNames(lapply(allPkgs, function(x) {
+  loc <- lapply(allPkgs, function(x) {
     find.package(x, lib.loc = lib.loc, quiet = TRUE)
-  }), allPkgs)
+  })
+  names(loc) <- allPkgs
 
   # Warn about missing packages
   notFound <- loc[sapply(loc, function(x) {
     !length(x)
   })]
+
   if (length(notFound)) {
     warning("The following external packages could not be located:\n- ",
             paste(shQuote(names(notFound)), collapse = ", "))
@@ -105,6 +126,7 @@ symlinkExternalPackages <- function(project = NULL) {
       file.path(libExtDir(project), basename(x))
     )
   })
+
   failedSymlinks <- results[sapply(results, Negate(isTRUE))]
   if (length(failedSymlinks)) {
     warning("The following external packages could not be linked into ",

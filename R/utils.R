@@ -62,6 +62,9 @@ is_dir <- function(file) {
 dir_copy <- function(from, to, overwrite = FALSE, all.files = TRUE,
                      pattern = NULL, ignore.case = TRUE) {
 
+  owd <- getwd()
+  on.exit(setwd(owd), add = TRUE)
+
   # Make sure we're doing sane things
   if (!is_dir(from)) stop("'", from, "' is not a directory.")
 
@@ -81,7 +84,20 @@ dir_copy <- function(from, to, overwrite = FALSE, all.files = TRUE,
 
   # Get relative file paths
   files.relative <- list.files(from, all.files = all.files, full.names = FALSE,
-                               pattern = pattern, recursive = TRUE, no.. = TRUE)
+                               recursive = TRUE, no.. = TRUE)
+
+  # Apply the pattern to the files
+  if (!is.null(pattern)) {
+    files.relative <- Reduce(intersect, lapply(pattern, function(p) {
+      grep(
+        pattern = p,
+        x = files.relative,
+        ignore.case = ignore.case,
+        perl = TRUE,
+        value = TRUE
+      )
+    }))
+  }
 
   # Get paths from and to
   files.from <- file.path(from, files.relative)
@@ -150,8 +166,8 @@ pkgDescriptionDependencies <- function(file) {
 
   ## Don't include 'base' packages
   ip <- installed.packages()
-  basePkgs <- ip[ Vectorize(isTRUE)(ip[, "Priority"] == "base"), "Package" ]
-  result <- result[ !(result$Package %in% basePkgs), ]
+  basePkgs <- ip[Vectorize(isTRUE)(ip[, "Priority"] == "base"), "Package"]
+  result <- result[!(result$Package %in% basePkgs), ]
 
   ## Don't include R
   result <- result[ !result$Package == "R", ]
@@ -185,9 +201,10 @@ endswith <- function(str1, str2) {
 }
 
 stopIfNotPackified <- function(project) {
+
   if (!checkPackified(project, quiet = TRUE)) {
     if (identical(project, getwd())) {
-      stop("This project has not yet been packified.\nRun 'packrat::init() to init packrat.",
+      stop("This project has not yet been packified.\nRun 'packrat::init()' to init packrat.",
            call. = FALSE)
     } else {
       stop("The project at '", project, "' has not yet been packified.\nRun 'packrat::init('", project, "') to init packrat.",
@@ -220,7 +237,13 @@ updateIgnoreFile <- function(project = NULL, file, add = NULL, remove = NULL) {
 }
 
 updateRBuildIgnore <- function(project = NULL, options) {
-  updateIgnoreFile(project = project, file = ".Rbuildignore", add = "^packrat/")
+
+  add <- c(
+    "^packrat/",
+    "^\\.Rprofile$"
+  )
+
+  updateIgnoreFile(project = project, file = ".Rbuildignore", add = add)
 }
 
 updateGitIgnore <- function(project = NULL, options) {
@@ -233,15 +256,27 @@ updateGitIgnore <- function(project = NULL, options) {
       "vcs.ignore.src" = paste0(relSrcDir(), "/")
     )
   )
+
   add <- names(git.options)[sapply(git.options, isTRUE)]
   remove <- names(git.options)[sapply(git.options, isFALSE)]
 
-  updateIgnoreFile(project = project, file = ".gitignore", add = add, remove = remove)
+  updateIgnoreFile(project = project,
+                   file = ".gitignore",
+                   add = add,
+                   remove = remove)
 }
 
+# A packrat project is managed by git if any one of its parent directories
+# contains a '.git' folder.
 isGitProject <- function(project) {
-  .git <- file.path(project, ".git")
-  file.exists(.git) && is_dir(.git)
+  path <- project
+  while (dirname(path) != path) {
+    .git <- file.path(path, ".git")
+    if (file.exists(.git) && is_dir(.git))
+      return(TRUE)
+    path <- dirname(path)
+  }
+  return(FALSE)
 }
 
 isSvnProject <- function(project) {
@@ -442,3 +477,18 @@ with_dir <- function(dir, expr) {
   on.exit(setwd(owd))
   eval(expr, envir = parent.frame())
 }
+
+set_collate <- function(locale) {
+  cur <- Sys.getlocale(category = "LC_COLLATE")
+  Sys.setlocale(category = "LC_COLLATE", locale = locale)
+  cur
+}
+
+with_collate <- function(locale, code) {
+  old <- set_collate(locale)
+  on.exit(set_collate(old))
+
+  force(code)
+}
+
+sort_c <- function(x) with_collate("C", sort(x))

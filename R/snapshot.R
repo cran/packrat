@@ -76,16 +76,32 @@ snapshot <- function(project = NULL,
 
 }
 
-snapshotImpl <- function(project,
-                         available = available.packages(),
-                         lib.loc = libDir(project),
-                         dry.run = FALSE,
-                         ignore.stale = FALSE,
-                         prompt = interactive(),
-                         auto.snapshot = FALSE,
-                         verbose = TRUE,
-                         fallback.ok = FALSE,
-                         snapshot.sources = TRUE) {
+#' Internal Snapshot Implementation
+#'
+#' This is the internal implementation for \code{\link{snapshot}}. Most users
+#' should prefer calling \code{\link{snapshot}}.
+#'
+#' @inheritParams snapshot
+#' @param auto.snapshot Internal use -- should be set to \code{TRUE} when this
+#'   is an automatic snapshot.
+#' @param verbose Print output to the console while \code{snapshot}-ing?
+#' @param fallback.ok Fall back to the latest CRAN version of a package if the
+#'   locally installed version is unavailable?
+#' @param snapshot.sources Download the tarball associated with a particular
+#'   package?
+#' @keywords internal
+#' @rdname snapshotImpl
+#' @export
+.snapshotImpl <- function(project,
+                          available = available.packages(),
+                          lib.loc = libDir(project),
+                          dry.run = FALSE,
+                          ignore.stale = FALSE,
+                          prompt = interactive(),
+                          auto.snapshot = FALSE,
+                          verbose = TRUE,
+                          fallback.ok = FALSE,
+                          snapshot.sources = TRUE) {
 
   # ensure packrat directory available
   packratDir <- getPackratDir(project)
@@ -102,7 +118,7 @@ snapshotImpl <- function(project,
 
   ## If we are using packrat alongside an R package, then we should
   ## ignore the package itself
-  if (file.exists(file.path(project, "DESCRIPTION"))) {
+  if (isRPackage(project = project)) {
     ignore <- unname(readDcf(file.path(project, "DESCRIPTION"))[, "Package"])
   } else {
     ignore <- NULL
@@ -112,7 +128,7 @@ snapshotImpl <- function(project,
   ignore <- c(ignore, c("manipulate", "rstudio"))
 
   libPkgs <- setdiff(list.files(libDir(project)), ignore)
-  inferredPkgs <- sort(appDependencies(project))
+  inferredPkgs <- sort_c(appDependencies(project))
 
   inferredPkgsNotInLib <- setdiff(inferredPkgs, libPkgs)
 
@@ -196,6 +212,15 @@ snapshotImpl <- function(project,
       # write the new lockfile. If packages were installed NOT by packrat, we
       # need to mark them as installed by packrat so they no longer are
       # considered "dirty" changes in need of snapshotting.
+
+      # Write a lockfile containing no packages if there is no lockfile.
+      if (!file.exists(lockFilePath(project))) {
+        writeLockFile(
+          lockFilePath(project),
+          allRecords
+        )
+      }
+
       return()
     }
   }
@@ -244,6 +269,11 @@ snapshotImpl <- function(project,
                         pkgsSnapshot = allRecords)))
 }
 
+# NOTE: `.snapshotImpl` is exported as an 'internal' function that may be
+# used by other packages, but we keep an (unexported) version of `snapshotImpl`
+# around for compatibility with older Packrat versions.
+snapshotImpl <- .snapshotImpl
+
 # Returns a vector of all active repos, including CRAN (with a fallback to the
 # RStudio CRAN mirror if none is specified) and Bioconductor if installed.
 activeRepos <- function(project) {
@@ -256,8 +286,16 @@ activeRepos <- function(project) {
   if (isTRUE(nchar(find.package("BiocInstaller", quiet = TRUE)) > 0)) {
     # Bioconductor repos may include repos already accounted for above
     # unique drops names so it's unsuitable for us here
-    repos <- c(repos, BiocInstaller::biocinstallRepos())
-    repos <- repos[!duplicated(names(repos))]
+    biocRepos <- BiocInstaller::biocinstallRepos()
+
+    ## Ignore what BiocInstaller says about CRAN
+    if ("CRAN" %in% names(biocRepos)) {
+      biocRepos <- biocRepos[-c(which(names(biocRepos) == "CRAN"))]
+    }
+
+    biocRepoNames <- names(biocRepos)
+    oldRepos <- repos[!(names(repos) %in% biocRepoNames)]
+    repos <- c(oldRepos, biocRepos)
   }
 
   return(repos)

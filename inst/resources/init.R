@@ -2,8 +2,22 @@ local({
 
   libDir <- file.path('packrat', 'lib', R.version$platform, getRversion())
 
-  if (is.na(Sys.getenv("RSTUDIO_PACKRAT_BOOTSTRAP", unset = NA)) &&
-        suppressWarnings(requireNamespace("packrat", quietly = TRUE, lib.loc = libDir))) {
+  ## Escape hatch to allow RStudio to handle initialization
+  if (!is.na(Sys.getenv("RSTUDIO", unset = NA)) &&
+        is.na(Sys.getenv("RSTUDIO_PACKRAT_BOOTSTRAP", unset = NA))) {
+    Sys.setenv("RSTUDIO_PACKRAT_BOOTSTRAP" = "1")
+    setHook("rstudio.sessionInit", function(...) {
+      source("packrat/init.R")
+    })
+    return(invisible(NULL))
+  }
+
+  ## Unload packrat in case it's loaded -- this ensures packrat _must_ be
+  ## loaded from the private library. Note that `requireNamespace` will
+  ## succeed if the package is already loaded, regardless of lib.loc!
+  try(unloadNamespace("packrat"), silent = TRUE)
+
+  if (suppressWarnings(requireNamespace("packrat", quietly = TRUE, lib.loc = libDir))) {
 
     # Check 'print.banner.on.startup' -- when NA and RStudio, don't print
     print.banner <- packrat::get_opts("print.banner.on.startup")
@@ -15,18 +29,9 @@ local({
     return(packrat::on(print.banner = print.banner))
   }
 
-  ## Bootstrapping -- only performed in interactive contexts
-  if (interactive()) {
-
-    ## Escape hatch to allow RStudio to handle initialization
-    if (!is.na(Sys.getenv("RSTUDIO", unset = NA)) &&
-          is.na(Sys.getenv("RSTUDIO_PACKRAT_BOOTSTRAP", unset = NA))) {
-      Sys.setenv("RSTUDIO_PACKRAT_BOOTSTRAP" = "1")
-      setHook("rstudio.sessionInit", function(...) {
-        source("packrat/init.R")
-      })
-      return(invisible(NULL))
-    }
+  ## Bootstrapping -- only performed in interactive contexts,
+  ## or when explicitly asked for on the command line
+  if (interactive() || "--bootstrap-packrat" %in% commandArgs(TRUE)) {
 
     message("Packrat is not installed in the local library -- ",
             "attempting to bootstrap an installation...")
@@ -138,7 +143,7 @@ local({
     ## an 'installed from source' version
 
     ## -- InstallAgent -- ##
-    installAgent <- 'InstallAgent: packrat 0.4.1'
+    installAgent <- 'InstallAgent: packrat 0.4.2'
 
     ## -- InstallSource -- ##
     installSource <- 'InstallSource: source'
@@ -165,7 +170,7 @@ local({
 
     # Callers (source-erers) can define this hidden variable to make sure we don't enter packrat mode
     # Primarily useful for testing
-    if (!exists(".__DONT_ENTER_PACKRAT_MODE__.")) {
+    if (!exists(".__DONT_ENTER_PACKRAT_MODE__.") && interactive()) {
       message("> Packrat bootstrap successfully completed. Entering packrat mode...")
       packrat::on()
     }

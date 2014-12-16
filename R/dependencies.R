@@ -1,39 +1,42 @@
-# Detect Application Dependencies
-#
-# Recursively detect all package dependencies for an application. This function
-# parses all .R files in the application directory to determine what packages
-# the application depends directly.
-#
-# Only direct dependencies are detected (i.e. no recursion is done to find the
-# dependencies of the dependencies).
-#
-# @param project Directory containing application. Defaults to current working
-#   directory.
-# @return Returns a list of the names of the packages on which R code in the
-#   application depends.
-# @details Dependencies are determined by parsing application source code and
-#   looking for calls to \code{library}, \code{require}, \code{::}, and
-#   \code{:::}.
-#
-# @examples
-#
-# \dontrun{
-#
-# # dependencies for the app in the current working dir
-# appDependencies()
-#
-# # dependencies for an app in another directory
-# appDependencies("~/projects/shiny/app1")
-# }
-# @keywords internal
-appDependencies <- function(project = NULL, available.packages = NULL) {
+#' Detect Application Dependencies
+#'
+#' Recursively detect all package dependencies for an application. This function
+#' parses all \R files in the application directory to determine what packages
+#' the application depends directly.
+#'
+#' Only direct dependencies are detected (i.e. no recursion is done to find the
+#' dependencies of the dependencies).
+#'
+#' @param project Directory containing application. Defaults to current working
+#'   directory.
+#' @return Returns a list of the names of the packages on which R code in the
+#'   application depends.
+#' @details Dependencies are determined by parsing application source code and
+#'   looking for calls to \code{library}, \code{require}, \code{::}, and
+#'   \code{:::}.
+#'
+#' @examples
+#'
+#' \dontrun{
+#'
+#' # dependencies for the app in the current working dir
+#' appDependencies()
+#'
+#' # dependencies for an app in another directory
+#' appDependencies("~/projects/shiny/app1")
+#'
+#' }
+#' @keywords internal
+appDependencies <- function(project = NULL,
+                            available.packages = NULL,
+                            fields = c("Imports", "Depends", "LinkingTo")) {
 
   if (is.null(available.packages)) available.packages <- available.packages()
 
   project <- getProjectDir(project)
 
   ## For R packages, we only use the DESCRIPTION file
-  if (file.exists(file.path(project, "DESCRIPTION"))) {
+  if (isRPackage(project)) {
 
     ## Make sure we get records recursively from the packages in DESCRIPTION
     parentDeps <-
@@ -43,15 +46,19 @@ appDependencies <- function(project = NULL, available.packages = NULL) {
     ## Presumedly, we can build child dependencies without vignettes, and hence
     ## do not need suggests -- for the package itself, we should make sure
     ## we grab suggests, however
-    childDeps <- recursivePackageDependencies(parentDeps, libDir(project),
-                                              available.packages)
+    childDeps <- recursivePackageDependencies(parentDeps,
+                                              libDir(project),
+                                              available.packages,
+                                              fields)
   } else {
     parentDeps <- setdiff(unique(c(dirDependencies(project))), "packrat")
-    childDeps <- recursivePackageDependencies(parentDeps, libDir(project),
-                                              available.packages)
+    childDeps <- recursivePackageDependencies(parentDeps,
+                                              libDir(project),
+                                              available.packages,
+                                              fields)
   }
 
-  sort(unique(c(parentDeps, childDeps, "packrat")))
+  sort_c(unique(c(parentDeps, childDeps, "packrat")))
 
 }
 
@@ -284,3 +291,29 @@ expressionDependencies <- function(e) {
   unique(unlist(children))
 }
 
+isRPackage <- function(project) {
+  file <- file.path(project, "DESCRIPTION")
+  if (!file.exists(file)) {
+    return(FALSE)
+  }
+
+  DESCRIPTION <- tryCatch(
+    readDcf(file = file),
+    error = function(e) {
+      warning("A 'DESCRIPTION' file was found, but could not be read as DCF",
+              call. = FALSE)
+      return(FALSE)
+    }
+  )
+
+  # If 'Type' is missing from the DESCRIPTION file, then we implicitly assume
+  # that it is an R package (#172)
+  if (!("Type" %in% colnames(DESCRIPTION))) {
+    return(TRUE)
+  }
+
+  # Otherwise, ensure that the type is `Package`
+  Type <- unname(as.character(DESCRIPTION[, "Type"]))
+  identical(Type, "Package")
+
+}

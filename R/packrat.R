@@ -130,7 +130,10 @@ init <- function(project = '.',
                  enter = TRUE,
                  restart = enter) {
 
-  opts <- default_opts()
+  opts <- get_opts(project = project)
+  if (is.null(opts))
+    opts <- default_opts()
+
   if (!is.null(options)) {
     for (i in seq_along(options)) {
       name <- names(options)[[i]]
@@ -145,7 +148,8 @@ init <- function(project = '.',
                            mustWork = TRUE)
   message("Initializing packrat project in directory:\n- ", surround(project, "\""))
 
-  ## A set of files that packrat might generate as part of init
+  ## A set of files that packrat might generate as part of init -- we
+  ## enumerate them here to assist with later cleanup
   prFiles <- c(
     file.path(project, ".gitignore"),
     file.path(project, ".Rprofile"),
@@ -162,7 +166,7 @@ init <- function(project = '.',
     prFiles
   )
 
-  tryCatch(
+  withCallingHandlers(
 
     expr = {
 
@@ -181,7 +185,7 @@ init <- function(project = '.',
         package <- description$Package
       }
 
-      ## Make sure the .Rprofile, .gitignore, etc. are up to date
+      ## Make sure the .Rprofile is up to date
       augmentRprofile(project)
       options <- initOptions(project, opts) ## writes out packrat.opts and returns generated list
 
@@ -201,6 +205,8 @@ init <- function(project = '.',
         file.path(project, .packrat$packratFolderName, "init.R")
       )
 
+      # Update project settings -- this also involves updating the .gitignore,
+      # etc
       updateSettings(project, options)
 
       ## Symlink system libraries always
@@ -219,7 +225,7 @@ init <- function(project = '.',
 
       invisible()
 
-    },
+    }, ## expr
 
     error = function(e) {
 
@@ -233,9 +239,7 @@ init <- function(project = '.',
         }
       }
 
-      stop(e)
-
-    }
+    } ## error
 
   )
 
@@ -546,11 +550,6 @@ packify <- function(project = NULL, quiet = FALSE) {
     content <- readLines(.Rprofile)
     autoloader <- readLines(autoloaderPath)
 
-    # if there is no content just overwrite the old file
-    if (!length(content) || identical(unique(content), "")) {
-      return(file.copy(autoloaderPath, .Rprofile, overwrite = TRUE))
-    }
-
     # Remove the old autoloader
     starts <- grep("#### -- Packrat Autoloader", content)
     if (length(starts)) {
@@ -566,14 +565,17 @@ packify <- function(project = NULL, quiet = FALSE) {
       end <- NULL
     }
 
-    if (length(start) && length(end) && end > start)
-      content <- content[-c(start:end)]
-
-    if (length(content)) {
-      content <- c(content, "", autoloader)
+    if (length(start) && length(end) && end > start) {
+      before <- seq_len(start)
+      after <- seq(from = end + 1, length.out = length(content) - end)
     } else {
-      content <- autoloader
+      before <- seq_along(content)
+      after <- integer()
+      if (length(content))
+        autoloader <- c("", autoloader)
     }
+
+    content <- c(content[before], autoloader, content[after])
     cat(content, file = .Rprofile, sep = "\n")
 
   }
@@ -581,7 +583,8 @@ packify <- function(project = NULL, quiet = FALSE) {
   ## Copy in packrat/init.R
   file.copy(
     instInitFilePath(),
-    file.path(project, .packrat$packratFolderName, "init.R")
+    file.path(project, .packrat$packratFolderName, "init.R"),
+    overwrite = TRUE
   )
 
   invisible()

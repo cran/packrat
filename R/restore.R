@@ -10,7 +10,8 @@ pkgSrcFilename <- function(pkgRecord) {
 # repository.
 isFromCranlikeRepo <- function(pkgRecord) {
   identical(pkgRecord$source, "CRAN") ||
-    identical(pkgRecord$source, "Bioconductor")
+  identical(pkgRecord$source, "Bioconductor") ||
+  inherits(pkgRecord, "CustomCRANLikeRepository")
 }
 
 # Given a package record and a database of packages, check to see if
@@ -147,8 +148,12 @@ getSourceForPkgRecord <- function(pkgRecord,
           archiveUrl <- file.path(repo, "src/contrib/Archive",
                                   pkgRecord$name,
                                   pkgSrcFile)
-          download.file(archiveUrl, file.path(pkgSrcDir, pkgSrcFile),
-                        mode = "wb", quiet = TRUE)
+          if (!downloadWithRetries(archiveUrl,
+                                   file.path(pkgSrcDir, pkgSrcFile),
+                                   mode = "wb", quiet = TRUE)) {
+            message("FAILED")
+            stop("Failed to download package from URL:\n- ", shQuote(archiveUrl))
+          }
           foundVersion <- TRUE
           type <- paste(type, "archived")
           break
@@ -172,7 +177,10 @@ getSourceForPkgRecord <- function(pkgRecord,
         unlink(srczip, recursive=TRUE)
     })
 
-    download(archiveUrl, srczip, quiet = TRUE, mode = "wb")
+    if (!downloadWithRetries(archiveUrl, srczip, quiet = TRUE, mode = "wb")) {
+      message("FAILED")
+      stop("Failed to download package from URL:\n- ", shQuote(archiveUrl))
+    }
 
     local({
       scratchDir <- tempfile()
