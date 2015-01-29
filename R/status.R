@@ -39,7 +39,7 @@ status <- function(project = NULL, lib.loc = libDir(project), quiet = FALSE) {
   ### enumerating the packages in lib.loc.
 
   ## Packages from the lockfile (with their version)
-  packratPackages <- lockInfo(project, fatal=FALSE)
+  packratPackages <- lockInfo(project, fatal = FALSE)
 
   if (length(packratPackages) == 0) {
     initArg <- if (projectDefault) '' else deparse(project)
@@ -55,40 +55,56 @@ status <- function(project = NULL, lib.loc = libDir(project), quiet = FALSE) {
   packratSources <- getPackageElement(packratPackages, "source")
 
   ## Packages in the library (with their version)
-  installedPkgs <- installed.packages(
-    lib.loc = lib.loc,
-    noCache = TRUE
-  )[, "Package"]
+  installedPkgFolders <- list.files(lib.loc, full.names = TRUE)
 
-  ## Ignore 'rstudio', 'manipulate'
-  installedPkgs <- setdiff(installedPkgs, c('rstudio', 'manipulate'))
+  installedPkgRecords <- lapply(installedPkgFolders, function(path) {
 
-  ## If we are using packrat alongside an R package, then we should
-  ## ignore the package itself
-  if (isRPackage(project = project)) {
-    pkgName <- unname(readDcf(file.path(project, "DESCRIPTION"))[, "Package"])
-    installedPkgs <- installedPkgs[installedPkgs != pkgName]
-  }
+    descPath <- file.path(path, "DESCRIPTION")
+    if (!file.exists(descPath)) {
+      warning("No DESCRIPTION file for installed package '", basename(path), "'")
+      return(NULL)
+    }
 
-  # Recursive should be false here -- we collect records _only_ for packages which are installed
-  installedPkgRecords <- flattenPackageRecords(
-    getPackageRecords(installedPkgs,
-                      project = project,
-                      recursive = FALSE,
-                      lib.loc = lib.loc,
-                      missing.package = function(...) NULL
+    DESCRIPTION <- readDcf(descPath, all = TRUE)
+    list(
+      name = DESCRIPTION$Package,
+      source = DESCRIPTION$InstallSource,
+      version = DESCRIPTION$Version
     )
-  )
-  installedPkgNames <- getPackageElement(installedPkgRecords, "name")
-  installedPkgVersions <- getPackageElement(installedPkgRecords, "version")
+  })
+
+  installedPkgNames <- unlist(lapply(installedPkgRecords, `[[`, "name"))
+  names(installedPkgNames) <- installedPkgNames
+  installedPkgVersions <- unlist(lapply(installedPkgRecords, `[[`, "version"))
+  names(installedPkgVersions) <- installedPkgNames
+
+  # Manually construct package records suitable for later reporting
 
   # Packages inferred from the code
-  # Don't stop execution if package missing from library; just propogate later
+  # Don't stop execution if package missing from library; just propagate later
   # as information to user
-  inferredPkgNames <- appDependencies(project)
+  #
+  # NOTE: We avoid explicitly calling `available.packages()`, just in case we haven't
+  # yet cached the set of available packages. However, to infer broken dependency chains
+  # it is in general necessary to have the set of `available.packages()` to fill in
+  # broken links.
+  availablePkgs <- if (hasCachedAvailablePackages())
+    available.packages()
+  else
+    suppressWarnings(available.packages(""))
+
+  inferredPkgNames <- appDependencies(
+    project,
+    available.packages = availablePkgs
+  )
+
 
   # Suppress warnings on 'Suggests', since they may be from non-CRAN repos (e.g. OmegaHat)
-  suggestedPkgNames <- suppressWarnings(appDependencies(project, fields = "Suggests"))
+  suggestedPkgNames <- suppressWarnings(
+    appDependencies(project,
+                    available.packages = availablePkgs,
+                    fields = "Suggests")
+  )
 
   # All packages mentioned in one of the three above
   allPkgNames <- sort_c(unique(c(
@@ -222,30 +238,13 @@ status <- function(project = NULL, lib.loc = libDir(project), quiet = FALSE) {
       )
     }
 
-    # Packages that are no longer used, but still seen in the library
-    whichPkgsNotNeeded <- with(statusTbl,
-                               !currently.used &
-                                 !is.na(library.version)
-    )
-    pkgsNotNeeded <- statusTbl$package[whichPkgsNotNeeded]
-    if (length(pkgsNotNeeded)) {
-      prettyPrint(
-        searchPackages(installedPkgRecords, pkgsNotNeeded),
-        "The following packages are installed but not needed:",
-        c("Use packrat::clean() to remove them. Or, if they are actually needed\n",
-          "by your project, add `library(packagename)` calls to a .R file\n",
-          "somewhere in your project.")
-      )
-    }
-
     # If everything is in order, let the user know
     if (!(any(onlyPackrat) ||
             length(missingFromPackrat) ||
             length(pkgNamesUntracked) ||
             length(pkgNamesOutOfSync) ||
             length(deletedButStillTracked) ||
-            length(missingFromPackrat) ||
-            length(pkgsNotNeeded))) {
+            length(missingFromPackrat))) {
       message("Up to date.")
     }
 
@@ -262,4 +261,11 @@ getPackageElement <- function(package, element) {
     unlist(lapply(package, "[[", "name"))
   )
 
+}
+
+hasCachedAvailablePackages <- function() {
+  contrib.url <- contrib.url(getOption('repos'))
+  tempFiles <- list.files(tempdir())
+  repoNames <- paste("repos_", URLencode(contrib.url, TRUE), ".rds", sep = "")
+  all(repoNames %in% tempFiles)
 }

@@ -153,7 +153,7 @@ fileDependencies.Rmd <- function(file) {
     }
   })
 
-  if (require("knitr", quietly = TRUE)) {
+  if (requireNamespace("knitr", quietly = TRUE)) {
     tempfile <- tempfile()
     on.exit(unlink(tempfile))
     tryCatch(silent(
@@ -237,7 +237,7 @@ expressionDependencies <- function(e) {
     parent <- e
     child <- e[[1L]]
     while (is.call(child)) {
-      parent <- e[[1L]]
+      parent <- parent[[1L]]
       child <- parent[[1L]]
     }
     if (as.character(child) %in% c("::", ":::")) {

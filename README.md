@@ -56,15 +56,16 @@ Navigate projects and set/get options with:
   navigating between projects within a single R session.
 - `packrat::get_opts`, `packrat::set_opts`: Get/set project-specific settings.
 
-Manage local repositories:
+Manage ad-hoc local repositories (note that these are a separate entity from
+CRAN-like repositories):
 - `packrat::set_opts(local.repos = ...)` can be used to specify *local
-  repositories*; that is, paths containing package sources.
+  repositories*; that is, directories containing (unzipped) package sources.
 - `packrat::install_local()` installs packages available in a local
   repository.
 
-For example, suppose I have a local version of the package
-[`digest`](http://cran.r-project.org/web/packages/digest/index.html) 
-located within `~/git/R`. To install this package, you can use:
+For example, suppose I have the (unzipped) package sources for
+[`digest`](http://cran.r-project.org/web/packages/digest/index.html) located
+within the folder`~/git/R/digest/`. To install this package, you can use:
 
     packrat::set_opts(local.repos = "~/git/R")
     packrat::install_local("digest")
@@ -75,9 +76,11 @@ library that you might not want as project-specific dependencies, e.g.
 `devtools`, `knitr`, `roxygen2`:
 
 - `packrat::extlib()`: Load an external package.
-- `packrat::with_extlib()`: With an external package, evaluate an expression. The
-  external package is loaded only for the duration of the evaluated
-  expression.
+- `packrat::with_extlib()`: With an external package, evaluate an expression.
+  The external package is loaded only for the duration of the evaluated
+  expression, but note that there may be other side effects associated with
+  the package's `.onLoad`, `.onAttach` and `.onUnload` calls that we may not
+  be able to fully control.
 
 # Workflows
 
@@ -95,3 +98,9 @@ Packrat supports a set of common analytic workflows:
    collected within one directory), and call `packrat::init()` to immediately
    obtain R package sources for all packages used in your project, and snapshot
    that state so it can hence be preserved across time.
+
+# Setting up your own custom, CRAN-like repositories
+
+Please view the [set-up
+guide](http://rstudio.github.io/packrat/custom-repos.html) here for a simple
+walkthrough in how you might set up your own, local, custom CRAN repository.
