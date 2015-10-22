@@ -345,10 +345,39 @@ setLibPaths <- function(paths) {
   .libPaths(paths)
 }
 
-## We only want to grab user libraries here -- system libraries are automatically
-## added in by R
-getLibPaths <- function(paths) {
-  setdiff(.libPaths(), c(.Library, .Library.site))
+normalize_paths <- function(paths, winslash = "/", mustWork = FALSE) {
+  paths[paths == ""] <- getwd()
+  unlist(lapply(paths, function(path) {
+    normalizePath(path, winslash = "/", mustWork = FALSE)
+  }))
+}
+
+getLibPaths <- function() {
+  normalize_paths(.libPaths())
+}
+
+getUserLibPaths <- function() {
+  allPaths <- getLibPaths()
+  sysPaths <- normalize_paths(c(.Library, .Library.site))
+  setdiff(allPaths, sysPaths)
+}
+
+## Get the default library paths (those that would be used upon
+## starting a new R session)
+getDefaultLibPaths <- function(use.cache = TRUE) {
+
+  if (use.cache && length(.packrat$default.libPaths))
+    return(.packrat$default.libPaths)
+
+  with_dir(tempdir(), {
+    R <- file.path(R.home("bin"), "R")
+    code <- shQuote("cat(.libPaths(), sep = '|||')")
+    cmd <- paste(shQuote(R), "--slave", "-e", code)
+    interned <- system(cmd, intern = TRUE)
+    result <- strsplit(interned, "|||", fixed = TRUE)[[1]]
+    .packrat$default.libPaths <- result
+    result
+  })
 }
 
 getInstalledPkgInfo <- function(packages, installed.packages, ...) {
@@ -517,4 +546,40 @@ filePrefix <- function() {
 
 reFilePrefix <- function() {
   paste("^", filePrefix(), sep = "")
+}
+
+# Call 'available.packages()' with an invalid URL to get the
+# 'skeleton' output of 'available.packages()' (ie, an empty matrix
+# with all appropriate fields populated)
+availablePackagesSkeleton <- function() {
+
+  # Use internal download file method just to ensure no errors leak.
+  download.file.method <- getOption("download.file.method")
+  on.exit(options(download.file.method = download.file.method), add = TRUE)
+  options(download.file.method = "internal")
+
+  # Use 'available.packages()' to query a URL that doesn't exist
+  result <- withCallingHandlers(
+    available.packages("/no/such/path/here/i/hope/"),
+    warning = function(w) invokeRestart("muffleWarning"),
+    message = function(m) invokeRestart("muffleMessage")
+  )
+
+  result
+}
+
+isProgramOnPath <- function(program) {
+  nzchar(Sys.which(program)[[1]])
+}
+
+isPathToSameFile <- function(lhs, rhs) {
+
+  if (!(is.string(lhs) && is.string(rhs)))
+    return(FALSE)
+
+  lhsNorm <- normalizePath(lhs, winslash = "/", mustWork = FALSE)
+  rhsNorm <- normalizePath(rhs, winslash = "/", mustWork = FALSE)
+
+  lhsNorm == rhsNorm
+
 }

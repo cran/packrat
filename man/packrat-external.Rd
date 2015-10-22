@@ -25,8 +25,10 @@ the duration of evaluation of \code{expr}.}
 \item{envir}{An environment in which the expression is evaluated.}
 }
 \description{
-These functions provide a mechanism for (temporarily) using packages outside of the
-packrat private library.
+These functions provide a mechanism for (temporarily) using packages outside
+of the packrat private library. The packages are searched within the 'default'
+libraries; that is, the libraries that would be available upon launching a new
+\R session.
 }
 \examples{
 \dontrun{

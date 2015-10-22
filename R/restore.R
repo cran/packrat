@@ -150,7 +150,7 @@ getSourceForPkgRecord <- function(pkgRecord,
                                   pkgRecord$name,
                                   pkgSrcFile)
           if (!downloadWithRetries(archiveUrl,
-                                   file.path(pkgSrcDir, pkgSrcFile),
+                                   destfile = file.path(pkgSrcDir, pkgSrcFile),
                                    mode = "wb", quiet = TRUE)) {
             message("FAILED")
             stop("Failed to download package from URL:\n- ", shQuote(archiveUrl))
@@ -178,7 +178,7 @@ getSourceForPkgRecord <- function(pkgRecord,
         unlink(srczip, recursive=TRUE)
     })
 
-    if (!downloadWithRetries(archiveUrl, srczip, quiet = TRUE, mode = "wb")) {
+    if (!downloadWithRetries(archiveUrl, destfile = srczip, quiet = TRUE, mode = "wb")) {
       message("FAILED")
       stop("Failed to download package from URL:\n- ", shQuote(archiveUrl))
     }
@@ -473,7 +473,7 @@ installPkg <- function(pkgRecord,
       # devtools does not install to any libraries other than the default, so
       # if the library we wish to install to is not the default, set as the
       # default while we do this operation.
-      if (!identical(getLibPaths()[1], lib)) {
+      if (!isPathToSameFile(getLibPaths()[1], lib)) {
         oldLibPaths <- getLibPaths()
         on.exit(setLibPaths(oldLibPaths), add = TRUE)
         # Make sure the library actually exists, otherwise setLibPaths will silently
@@ -490,8 +490,9 @@ installPkg <- function(pkgRecord,
         on.exit(library(pkgRecord$name, character.only = TRUE), add = TRUE)
       }
 
+      quiet <- packrat::opts$quiet.package.installation()
       install_local_path(path = pkgSrc, reload = FALSE,
-                         dependencies = FALSE, quick = TRUE, quiet = TRUE)
+                         dependencies = FALSE, quick = TRUE, quiet = quiet)
     })
   }
 
@@ -502,6 +503,7 @@ installPkg <- function(pkgRecord,
 }
 
 playActions <- function(pkgRecords, actions, repos, project, lib) {
+
   # Get the list of available packages and the latest version of those packages
   # from the repositories, and the local install list for comparison
   availablePkgs <- available.packages(contrib.url(repos))
@@ -529,8 +531,9 @@ playActions <- function(pkgRecords, actions, repos, project, lib) {
               pkgRecord$version, ") ... ", appendLF = FALSE)
       removePkgs(project, pkgRecord$name, lib)
     } else if (identical(action, "add")) {
+      # Insert newline to show progress on consoles that buffer to newlines.
       message("Installing ", pkgRecord$name, " (", pkgRecord$version, ") ... ",
-              appendLF = FALSE)
+              appendLF = TRUE)
     } else if (identical(action, "remove")) {
       if (is.null(pkgRecord)) {
         message("Removing ", names(actions[i]), " ... ", appendLF = FALSE)
@@ -544,7 +547,7 @@ playActions <- function(pkgRecords, actions, repos, project, lib) {
       next
     }
     type <- installPkg(pkgRecord, project, availablePkgs, repos, lib, cache)
-    message("OK (", type, ")")
+    message("\tOK (", type, ")")
   }
   invisible()
 }
