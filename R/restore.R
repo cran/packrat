@@ -152,7 +152,6 @@ getSourceForPkgRecord <- function(pkgRecord,
           if (!downloadWithRetries(archiveUrl,
                                    destfile = file.path(pkgSrcDir, pkgSrcFile),
                                    mode = "wb", quiet = TRUE)) {
-            message("FAILED")
             stop("Failed to download package from URL:\n- ", shQuote(archiveUrl))
           }
           foundVersion <- TRUE
@@ -163,6 +162,7 @@ getSourceForPkgRecord <- function(pkgRecord,
         })
       }
       if (!foundVersion) {
+        message("FAILED")
         stop("Couldn't find source for version ", pkgRecord$version, " of ",
              pkgRecord$name, " (", currentVersion, " is current)")
       }
@@ -233,7 +233,7 @@ getSourceForPkgRecord <- function(pkgRecord,
     if (file.exists(file.path(pkgSrcDir, pkgSrcFile))) {
       message("OK (", type, ")")
     } else {
-      message("Failed")
+      message("FAILED")
       stop("Could not find sources for ", pkgRecord$name, " (",
            pkgRecord$version, ").")
     }
@@ -415,11 +415,7 @@ installPkg <- function(pkgRecord,
       # streams to keep our own output clean.
 
       # on windows, we need to detach the package before installation
-      if (is.windows() && paste0("package:", pkgRecord$name) %in% search()) {
-        pkg <- paste0("package:", pkgRecord$name)
-        detach(pkg, character.only = TRUE)
-        on.exit(library(pkgRecord$name, character.only = TRUE), add = TRUE)
-      }
+      detachPackageForInstallationIfNecessary(pkgRecord$name)
 
       # If pkgType is 'both', the availablePkgs inferred will be wrong.
       # The default behaviour for `available.packages()`,
@@ -483,14 +479,9 @@ installPkg <- function(pkgRecord,
       }
 
       # on windows, we need to detach the package before installation
-      if (is.windows() &&
-            paste0("package:", pkgRecord$name) %in% search()) {
-        pkg <- paste0("package:", pkgRecord$name)
-        detach(pkg, character.only = TRUE)
-        on.exit(library(pkgRecord$name, character.only = TRUE), add = TRUE)
-      }
+      detachPackageForInstallationIfNecessary(pkgRecord$name)
 
-      quiet <- packrat::opts$quiet.package.installation()
+      quiet <- isTRUE(packrat::opts$quiet.package.installation())
       install_local_path(path = pkgSrc, reload = FALSE,
                          dependencies = FALSE, quick = TRUE, quiet = quiet)
     })
@@ -652,5 +643,39 @@ restoreImpl <- function(project,
          project = project,
          targetLib = targetLib)
   }
+}
+
+detachPackageForInstallationIfNecessary <- function(pkg) {
+
+  # no need to detach if not actually attached
+  searchPathName <- paste("package", pkg, sep = ":")
+  if (!searchPathName %in% search())
+    return(FALSE)
+
+  # get the library the package was actually loaded from
+  location <- which(search() == searchPathName)
+  pkgPath <- attr(as.environment(location), "path")
+  if (!is.character(pkgPath))
+    return(FALSE)
+
+  # got the package path; detach and reload on exit of parent.
+  # when running tests, we want to reload packrat from the same
+  # directory it was run from rather than the private library, as
+  # we install a dummy version of packrat that doesn't actually export
+  # the functions we need
+  libPaths <- if (pkg == "packrat" && isTestingPackrat()) {
+    strsplit(Sys.getenv("R_PACKRAT_LIBPATHS"),
+             .Platform$path.sep,
+             fixed = TRUE)[[1]]
+  } else {
+    dirname(pkgPath)
+  }
+
+  detach(searchPathName, character.only = TRUE)
+
+  # re-load the package when the calling function returns
+  defer(library(pkg, lib.loc = libPaths, character.only = TRUE), parent.frame())
+
+  TRUE
 }
 

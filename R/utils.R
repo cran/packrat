@@ -583,3 +583,21 @@ isPathToSameFile <- function(lhs, rhs) {
   lhsNorm == rhsNorm
 
 }
+
+isTestingPackrat <- function() {
+  !is.na(Sys.getenv("R_PACKRAT_TESTING", unset = NA))
+}
+
+defer <- function(expr, envir = parent.frame()) {
+
+  # Create a call that must be evaluated in the parent frame (as
+  # that's where functions and symbols need to be resolved)
+  call <- substitute(
+    evalq(expr, envir = envir),
+    list(expr = substitute(expr), envir = parent.frame())
+  )
+
+  # Use 'do.call' with 'on.exit' to attach the evaluation to
+  # the exit handlrs of the selected frame
+  do.call("on.exit", list(substitute(call), add = TRUE), envir = envir)
+}
