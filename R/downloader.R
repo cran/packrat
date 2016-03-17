@@ -35,6 +35,14 @@
 #
 download <- function(url, method = inferAppropriateDownloadMethod(url), ...) {
 
+  # If this is a path to a GitHub URL, attempt to download with authentication,
+  # so that private GitHub repositories can be handled.
+  if (isGitHubURL(url) && canUseGitHubDownloader()) {
+    result <- try(githubDownload(url, ...), silent = TRUE)
+    if (!inherits(result, "try-error"))
+      return(result)
+  }
+
   # When on Windows using an 'internal' method, we need to call
   # 'setInternet2' to set some appropriate state.
   if (is.windows() && method == "internal") {
@@ -68,7 +76,12 @@ downloadFile <- function(url,
   # If the download method we're using matches the current option for
   # 'download.file.method', then propagate 'extra' options.
   if (identical(getOption("download.file.method"), method))
-    extra <- getOption("download.file.extra")
+    extra <- getOption("download.file.extra", default = "")
+
+  extra <- if (is.character(extra))
+    paste(extra, collapse = " ")
+  else
+    ""
 
   # If we're using 'curl', we need to set '-L' to follow
   # redirects, and '-f' to ensure HTTP error codes are treated
@@ -79,6 +92,11 @@ downloadFile <- function(url,
 
     if (!grepl("\\b-f\\b", extra))
       extra <- paste(extra, "-f")
+
+    # Also, redirect stderr to stdout, just for nicer
+    # printing in RStudio.
+    if (!grepl("\\b--stderr -\\b", extra))
+      extra <- paste(extra, "--stderr -")
   }
 
   # Catch warnings in the call.
@@ -203,7 +221,7 @@ secureDownloadMethod <- function() {
     return("libcurl")
 
   # Otherwise, fall back to 'wget' or 'curl' (preferring 'wget')
-  candidates <- c("wget", "curl")
+  candidates <- c("curl", "wget")
   for (candidate in candidates)
     if (isProgramOnPath(candidate))
       return(candidate)

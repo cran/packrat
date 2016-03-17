@@ -50,24 +50,27 @@ writeLockFile <- function(file, lockinfo) {
   stopifnot(nrow(preamble) == 1)
 
   # Remaining records are about the packages
-  packages <- flattenPackageRecords(lockinfo, depInfo=TRUE, sourcePath=TRUE)
-  fieldNames <- collectFieldNames(packages)
-  packageInfo <- lapply(fieldNames, function(fieldName) {
-    values <- data.frame(vapply(packages, function(pkg) {
-      if (!is.null(pkg[[fieldName]]))
-        pkg[[fieldName]]
-      else
-        NA_character_
-    }, character(1), USE.NAMES = FALSE))
-    names(values) <- fieldName
-    return(values)
-  })
-  packageInfoDf <- do.call(data.frame, packageInfo)
+  if (length(lockinfo)) {
+    packages <- flattenPackageRecords(lockinfo, depInfo = TRUE, sourcePath = TRUE)
+    fieldNames <- collectFieldNames(packages)
+    packageInfo <- lapply(fieldNames, function(fieldName) {
+      values <- data.frame(vapply(packages, function(pkg) {
+        if (!is.null(pkg[[fieldName]]))
+          pkg[[fieldName]]
+        else
+          NA_character_
+      }, character(1), USE.NAMES = FALSE))
+      names(values) <- fieldName
+      return(values)
+    })
+    packageInfoDf <- do.call(data.frame, packageInfo)
+    df <- rbind2(preamble, packageInfoDf)
+  } else {
+    df <- as.data.frame(preamble, stringsAsFactors = FALSE)
+  }
 
-  df <- rbind2(preamble, packageInfoDf)
   names(df) <- translate(names(df), r_aliases)
   write_dcf(df, file)
-
   invisible()
 }
 
@@ -224,7 +227,7 @@ deserializePackages <- function(df) {
   topoSorted <- topoSort(graph)
 
   # It's now safe to drop the requires info since it's encoded in the graph
-  df <- df[, names(df) != 'requires', drop=FALSE]
+  df <- df[, names(df) != 'requires', drop = FALSE]
 
   sortedPackages <- lapply(topoSorted, function(pkgName) {
     pkg <- as.list(df[df$name == pkgName,])

@@ -211,7 +211,7 @@ init <- function(project = '.',
       # Copy init.R so a user can 'start from zero' with a project
       file.copy(
         instInitFilePath(),
-        file.path(project, .packrat$packratFolderName, "init.R")
+        file.path(project, "packrat", "init.R")
       )
 
       # Update project settings -- this also involves updating the .gitignore,
@@ -374,7 +374,7 @@ restore <- function(project = NULL,
   # overwrite.dirty flag. Dirty packages that are not represented in the snapshot
   # (like git untracked) will be silently ignored in all cases.
 
-  libPkgNames <- rownames(installed.packages(libDir, noCache=TRUE))
+  libPkgNames <- rownames(installed.packages(libDir, noCache = TRUE))
   dirty <- !installedByPackrat(libPkgNames, libDir, TRUE)
   dirtyPackageNames <- libPkgNames[dirty]
 
@@ -565,7 +565,7 @@ packify <- function(project = NULL, quiet = FALSE) {
   ## Copy in packrat/init.R
   file.copy(
     instInitFilePath(),
-    file.path(project, .packrat$packratFolderName, "init.R"),
+    file.path(project, "packrat", "init.R"),
     overwrite = TRUE
   )
 

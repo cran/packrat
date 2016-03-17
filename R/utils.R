@@ -19,7 +19,7 @@ forceUnload <- function(pkg) {
   pkgDLL <- getLoadedDLLs()[[pkgName]]
   if (!is.null(pkgDLL)) {
     suppressWarnings({
-      pkgDir <- system.file(package=pkgName)
+      pkgDir <- system.file(package = pkgName)
       if (nzchar(pkgDir))
         try(library.dynam.unload(pkgName, pkgDir), silent = TRUE)
     })
@@ -128,6 +128,11 @@ pkgDescriptionDependencies <- function(file) {
 
   if (!file.exists(file)) stop("no file '", file, "'")
   DESCRIPTION <- readDcf(file)
+
+  # ignore empty description
+  if (nrow(DESCRIPTION) < 1)
+    return(list())
+
   requirements <- DESCRIPTION[1, fields[fields %in% colnames(DESCRIPTION)]]
 
   ## Remove whitespace
@@ -170,7 +175,7 @@ pkgDescriptionDependencies <- function(file) {
   result <- result[!(result$Package %in% basePkgs), ]
 
   ## Don't include R
-  result <- result[ !result$Package == "R", ]
+  result <- result[!result$Package == "R", ]
 
   result
 
@@ -189,7 +194,7 @@ startswith <- function(str1, str2) {
 
 # does str1 end with str2?
 endswith <- function(str1, str2) {
-  if (!length(str2) == 1) stop ("expecting a length 1 string for 'str2'")
+  if (!length(str2) == 1) stop("expecting a length 1 string for 'str2'")
   n2 <- nchar(str2)
   sapply(str1, function(x) {
     nx <- nchar(x)
@@ -238,7 +243,7 @@ updateIgnoreFile <- function(project = NULL, file, add = NULL, remove = NULL) {
 
 }
 
-updateRBuildIgnore <- function(project = NULL, options) {
+updateRBuildIgnore <- function(project = NULL) {
 
   add <- c(
     "^packrat/",
@@ -364,20 +369,8 @@ getUserLibPaths <- function() {
 
 ## Get the default library paths (those that would be used upon
 ## starting a new R session)
-getDefaultLibPaths <- function(use.cache = TRUE) {
-
-  if (use.cache && length(.packrat$default.libPaths))
-    return(.packrat$default.libPaths)
-
-  with_dir(tempdir(), {
-    R <- file.path(R.home("bin"), "R")
-    code <- shQuote("cat(.libPaths(), sep = '|||')")
-    cmd <- paste(shQuote(R), "--slave", "-e", code)
-    interned <- system(cmd, intern = TRUE)
-    result <- strsplit(interned, "|||", fixed = TRUE)[[1]]
-    .packrat$default.libPaths <- result
-    result
-  })
+getDefaultLibPaths <- function() {
+  getenv(.packrat.env$R_PACKRAT_DEFAULT_LIBPATHS)
 }
 
 getInstalledPkgInfo <- function(packages, installed.packages, ...) {
@@ -616,4 +609,28 @@ isUsingExternalTar <- function() {
     return(FALSE)
 
   TRUE
+}
+
+join <- function(..., sep = "", collapse = NULL) {
+  paste(..., sep = sep, collapse = collapse)
+}
+
+# sneakily get a function
+yoink <- function(package, symbol) {
+  eval(call(":::", package, symbol))
+}
+
+enumerate <- function(list, fn) {
+  keys <- names(list)
+  values <- list
+  sapply(seq_along(keys), function(i) {
+    fn(keys[[i]], values[[i]])
+  })
+}
+
+packageVersionInstalled <- function(...) {
+  enumerate(list(...), function(package, version) {
+    result <- try(packageVersion(package), silent = TRUE)
+    !inherits(result, "try-error") && result >= version
+  })
 }

@@ -124,10 +124,10 @@ withTestContext({
     repos <- getOption("repos")
     pkgType <- getOption("pkgType")
     on.exit({
-      options("repos"= repos)
+      options("repos" = repos)
       options("pkgType" = pkgType)
     }, add = TRUE)
-    options(repos=c(CRAN=getOption("repos"), custom=getOption("repos")))
+    options(repos = c(CRAN = getOption("repos"), custom = getOption("repos")))
 
     projRoot <- cloneTestProject("empty")
     init(enter = FALSE, projRoot, options = list(local.repos = "packages"))
@@ -149,10 +149,10 @@ withTestContext({
     skip_on_os("windows")
 
     projRoot <- cloneTestProject("sated")
-    init(enter = FALSE, projRoot, options = list(local.repos = "packages"))
+    packrat::init(enter = FALSE, projRoot, options = list(local.repos = "packages"))
     list.files(projRoot, all.files = TRUE, recursive = TRUE)
     expect_true(file.exists(file.path(projRoot, ".Rprofile")))
-    disable(projRoot)
+    packrat::disable(projRoot, restart = FALSE)
     expect_false(file.exists(file.path(projRoot, ".Rprofile")))
 
     unlink(projRoot, recursive = TRUE)
@@ -183,7 +183,6 @@ withTestContext({
     content <- readLines(file.path(projRoot, ".Rprofile"))
     packrat::disable(projRoot, restart = FALSE)
     expect_false(file.exists(file.path(projRoot, ".Rprofile")))
-
   })
 
   test_that("status does not fail", {
@@ -213,4 +212,10 @@ withTestContext({
     expect_warning(hash("packages/egg/DESCRIPTION"))
   })
 
+  test_that("snapshot succeeds with an empty DESCRIPTION", {
+    skip_on_cran()
+    projRoot <- cloneTestProject("emptydesc")
+    .snapshotImpl(projRoot, implicit.packrat.dependency = FALSE,
+                  snapshot.sources = FALSE)
+  })
 })

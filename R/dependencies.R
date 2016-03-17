@@ -92,12 +92,15 @@ appDependencies <- function(project = NULL,
   if (!("shiny" %in% result) && isShinyApp(project))
     result <- c(result, "shiny")
 
+  if (is.null(result))
+    return(character())
+
   sort_c(result)
 }
 
 # detect all package dependencies for a directory of files
 dirDependencies <- function(dir) {
-  dir <- normalizePath(dir, winslash='/')
+  dir <- normalizePath(dir, winslash = '/')
 
   # first get the packages referred to in source code
   pattern <- "\\.[rR]$|\\.[rR]md$|\\.[rR]nw$|\\.[rR]pres$"
@@ -110,7 +113,7 @@ dirDependencies <- function(dir) {
 
   ## Avoid anything within the packrat directory itself -- all inference
   ## should be done on user code
-  packratDirRegex <- paste("^", .packrat$packratFolderName, sep = "")
+  packratDirRegex <- paste("^", "packrat", sep = "")
   R_files <- grep(packratDirRegex, R_files, invert = TRUE, value = TRUE)
 
 
@@ -131,19 +134,20 @@ dirDependencies <- function(dir) {
 
 # ad-hoc dispatch based on the file extension
 fileDependencies <- function(file) {
+  file <- normalizePath(file, winslash = "/", mustWork = TRUE)
   fileext <- tolower(gsub(".*\\.", "", file))
-  switch (fileext,
-          r = fileDependencies.R(file),
-          rmd = fileDependencies.Rmd(file),
-          rnw = fileDependencies.Rnw(file),
-          rpres = fileDependencies.Rpres(file),
-          stop("Unrecognized file type '", file, "'")
+  switch(fileext,
+         r = fileDependencies.R(file),
+         rmd = fileDependencies.Rmd(file),
+         rnw = fileDependencies.Rnw(file),
+         rpres = fileDependencies.Rpres(file),
+         stop("Unrecognized file type '", file, "'")
   )
 }
 
 hasYamlFrontMatter <- function(content) {
   lines <- grep("^(---|\\.\\.\\.)\\s*$", content, perl = TRUE)
-  1 %in% lines && length(lines) >= 2 && grepl("^---\\s*$", content[1], perl=TRUE)
+  1 %in% lines && length(lines) >= 2 && grepl("^---\\s*$", content[1], perl = TRUE)
 }
 
 yamlDeps <- function(yaml) {
@@ -156,6 +160,15 @@ yamlDeps <- function(yaml) {
 fileDependencies.Rmd <- function(file) {
 
   deps <- "rmarkdown"
+
+  # check whether the default output format references a package
+  if (requireNamespace("rmarkdown", quietly = TRUE)) {
+    format <- rmarkdown::default_output_format(file)
+    components <- strsplit(format$name, "::")[[1]]
+    if (length(components) == 2) {
+      deps <- c(deps, components[[1]])
+    }
+  }
 
   # We need to check for and parse YAML frontmatter if necessary
   yamlDeps <- NULL
@@ -405,14 +418,17 @@ isRPackage <- function(project) {
 
   DESCRIPTION <- readDESCRIPTION(descriptionPath)
 
-  # If 'Type' is missing from the DESCRIPTION file, then we implicitly assume
-  # that it is an R package (#172)
-  if (!("Type" %in% names(DESCRIPTION)))
+  # If 'Type' is in the DESCRIPTION, ensure it's equal to 'Package'.
+  if ("Type" %in% names(DESCRIPTION))
+    return(identical(DESCRIPTION$Type, "Package"))
+
+  # Some packages will have a DESCRIPTION file without the 'Type' field.
+  # Check that these still declare themselves with the 'Package' field.
+  if ("Package" %in% names(DESCRIPTION))
     return(TRUE)
 
-  # Otherwise, ensure that the type is `Package`
-  Type <- unname(as.character(DESCRIPTION$Type))
-  identical(Type, "Package")
+  # DESCRIPTION for a non-R package (e.g. Shiny application?)
+  FALSE
 
 }
 

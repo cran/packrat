@@ -112,9 +112,15 @@ getSourceForPkgRecord <- function(pkgRecord,
       }
     })
     type <- "local"
-  } else if (isFromCranlikeRepo(pkgRecord) &&
-               pkgRecord$name %in% rownames(availablePkgs)) {
-    currentVersion <- availablePkgs[pkgRecord$name,"Version"]
+  } else if (isFromCranlikeRepo(pkgRecord)) {
+
+    # Attempt to detect if this is the current version of a package
+    # on a CRAN-like repository
+    currentVersion <- if (pkgRecord$name %in% rownames(availablePkgs))
+      availablePkgs[pkgRecord$name, "Version"]
+    else
+      NA
+
     # Is the source for this version of the package on CRAN and/or a
     # Bioconductor repo?
     if (identical(pkgRecord$version, currentVersion)) {
@@ -163,20 +169,45 @@ getSourceForPkgRecord <- function(pkgRecord,
       }
       if (!foundVersion) {
         message("FAILED")
-        stop("Couldn't find source for version ", pkgRecord$version, " of ",
-             pkgRecord$name, " (", currentVersion, " is current)")
+        stopMsg <- sprintf("Couldn't find source for version %s of %s",
+                           pkgRecord$version,
+                           pkgRecord$name)
+
+        if (!is.na(currentVersion))
+          stopMsg <- paste(stopMsg, sprintf("(%s is current)", currentVersion))
+
+        stop(stopMsg)
       }
     }
   } else if (identical(pkgRecord$source, "github")) {
-    archiveUrl <- paste("http://github.com/", pkgRecord$gh_username, "/",
-                        pkgRecord$gh_repo, "/archive/", pkgRecord$gh_sha1,
-                        ".tar.gz", sep = "")
 
-    srczip <- tempfile(fileext='.tar.gz')
+    # Prefer using https if possible. Note that 'wininet'
+    # can fail if attempting to download from an 'http'
+    # URL that redirects to an 'https' URL.
+    # https://github.com/rstudio/packrat/issues/269
+    method <- tryCatch(
+      secureDownloadMethod(),
+      error = function(e) "internal"
+    )
+
+    protocol <- if (identical(method, "internal"))
+      "http"
+    else
+      "https"
+
+    hostname <- "www.github.com"
+    path <- file.path(pkgRecord$gh_username,
+                      pkgRecord$gh_repo,
+                      "archive",
+                      join(pkgRecord$gh_sha1, ".tar.gz"))
+
+    archiveUrl <- join(protocol, "://", hostname, "/", path)
+
+    srczip <- tempfile(fileext = '.tar.gz')
     on.exit({
       if (file.exists(srczip))
-        unlink(srczip, recursive=TRUE)
-    })
+        unlink(srczip, recursive = TRUE)
+    }, add = TRUE)
 
     if (!downloadWithRetries(archiveUrl, destfile = srczip, quiet = TRUE, mode = "wb")) {
       message("FAILED")
@@ -187,11 +218,11 @@ getSourceForPkgRecord <- function(pkgRecord,
       scratchDir <- tempfile()
       on.exit({
         if (file.exists(scratchDir))
-          unlink(scratchDir, recursive=TRUE)
+          unlink(scratchDir, recursive = TRUE)
       })
       # untar can emit noisy warnings (e.g. "skipping pax global extended
       # headers"); hide those
-      suppressWarnings(untar(srczip, exdir=scratchDir, tar="internal"))
+      suppressWarnings(untar(srczip, exdir = scratchDir, tar = "internal"))
       # Find the base directory
       basedir <- if (length(dir(scratchDir)) == 1)
         file.path(scratchDir, dir(scratchDir))
@@ -215,15 +246,15 @@ getSourceForPkgRecord <- function(pkgRecord,
       appendToDcf(file.path(basedir, 'DESCRIPTION'), ghinfo)
 
       file.create(file.path(pkgSrcDir, pkgSrcFile))
-      dest <- normalizePath(file.path(pkgSrcDir, pkgSrcFile), winslash='/')
+      dest <- normalizePath(file.path(pkgSrcDir, pkgSrcFile), winslash = '/')
 
       # R's internal tar (which we use here for cross-platform consistency)
       # emits warnings when there are > 100 characters in the path, due to the
       # resulting incompatibility with older implementations of tar. This isn't
       # relevant for our purposes, so suppress the warning.
       in_dir(dirname(basedir),
-             suppressWarnings(tar(tarfile=dest, files=basename(basedir),
-                                  compression='gzip', tar='internal'))
+             suppressWarnings(tar(tarfile = dest, files = basename(basedir),
+                                  compression = 'gzip', tar = 'internal'))
       )
     })
 
