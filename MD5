@@ -1,4 +1,4 @@
-5d523b675bbf278de06734549893cdf0 *DESCRIPTION
+c6f1c5c30cbb1c8738b6c09fd44900e4 *DESCRIPTION
 7e33582167bd0ae7fd26d3f6b4a1204a *NAMESPACE
 bbf0cfed4b4d4ef66880ea317cc40637 *R/aaa-globals.R
 a23fadcc779613acf3f15d52b947042f *R/augment-rprofile.R
@@ -44,8 +44,8 @@ a21ef8f7b944195005db824fa18c4ba0 *R/update.R
 bd925bab506f958857a1a0a53874da5c *R/utils.R
 b6c6ef4bb71f15ce61987e13342783a7 *R/zzz.R
 a961cd24496df65ae5e6743fbb55af65 *README.md
-25c8011c076a714416bbbb193eb44d21 *inst/resources/init-rprofile.R
-b668e9dcd9bc8b66dd8c01729d4fe884 *inst/resources/init.R
+109ea91681c8e939919c99ebda941109 *inst/resources/init-rprofile.R
+b69f09be6ace22c9d067eb76208fce64 *inst/resources/init.R
 c513f80a21bb4c9d9e21392312392240 *inst/resources/mac_r_userlib.sh
 4affbb9d61d533e48a8274cdd712a9f8 *inst/rstudio/rstudio-protocol
 13a07bd719d447a40bd5ff7150cf11bb *man/appDependencies.Rd
@@ -72,7 +72,7 @@ f8adadbe1a4e58d5d9034c0618159b29 *man/restore.Rd
 eefa4423ca410c1e50b3a7d3586086dd *man/unbundle.Rd
 207decc2baf544db61828fa3dcccc4f9 *man/unused_packages.Rd
 175c1f87f53e45c3ba25e442f420ccd9 *tests/test-all.R
-4928f6687a029e4e491591eb561da181 *tests/test-cranlike-repositories.R
+b4eb6e1511e8269e38b8f4d401d79797 *tests/test-cranlike-repositories.R
 ed5a74b6ccd53686fc405ec5fe0287b3 *tests/testthat/Ugly, but legal, path for a project (long)/bread/DESCRIPTION
 b81d577ce3cac1b01b26748ed6d4bea6 *tests/testthat/Ugly, but legal, path for a project (long)/breakfast/DESCRIPTION
 700e054b6e32a80c8dcab5dcaa4e60d5 *tests/testthat/Ugly, but legal, path for a project (long)/oatmeal/DESCRIPTION
