@@ -338,6 +338,7 @@ restore <- function(project = NULL,
   # .libPaths() to be persistent -- so we unset them at the conclusion
   # of the restore. This is done to ensure downstream calls to e.g.
   # `system.file()` are successful.
+  libDir <- libDir(project)
   if (!file.exists(libDir(project)))
     dir.create(libDir(project), recursive = TRUE)
 
@@ -355,17 +356,13 @@ restore <- function(project = NULL,
     on.exit(Sys.setenv("CYGWIN" = cygwin), add = TRUE)
   }
 
+  # Validate the version of R used when restoring this project, and
+  # warn if the versions don't match.
   packages <- lockInfo(project)
   r_version <- lockInfo(project, 'r_version')
   if (!identical(as.character(getRversion()), r_version)) {
     warning('The most recent snapshot was generated using R version ',
             r_version)
-  }
-
-  # Make sure the library directory exists
-  libDir <- libDir(project)
-  if (!file.exists(libDir)) {
-    dir.create(libDir, recursive = TRUE)
   }
 
   # See if any of the packages that are currently in the library are dirty.
@@ -393,9 +390,17 @@ restore <- function(project = NULL,
     pkgsToIgnore <- dirtyPackageNames[!dirtyPackageNames %in% pkgNames(packages)]
   }
 
+  # Configure repos globally to avoid explicitly passing the repos list to all
+  # downstream function calls.
+  repos <- lockInfo(project, 'repos')
+  externalRepos <- getOption('repos')
+  options(repos = repos)
+  on.exit({
+    options(repos = externalRepos)
+    }, add = TRUE)
+
   # Install each package from CRAN or github, from binaries when available and
   # then from sources.
-  repos <- lockInfo(project, 'repos')
   restoreImpl(project, repos, packages, libDir,
               pkgsToIgnore = pkgsToIgnore, prompt = prompt,
               dry.run = dry.run,

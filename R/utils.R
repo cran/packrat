@@ -234,11 +234,13 @@ updateIgnoreFile <- function(project = NULL, file, add = NULL, remove = NULL) {
     return(invisible())
   }
 
-  ## If it already exists, add and remove as necessary
+  ## If it already exists, add and remove as necessary, otherwise do nothing
   content <- readLines(path)
-  content <- union(content, add)
-  content <- setdiff(content, remove)
-  cat(content, file = path, sep = "\n")
+  newContent <- union(content, add)
+  newContent <- setdiff(newContent, remove)
+  if (!setequal(content, newContent)) {
+    cat(newContent, file = path, sep = "\n")
+  }
   return(invisible())
 
 }
@@ -633,4 +635,17 @@ packageVersionInstalled <- function(...) {
     result <- try(packageVersion(package), silent = TRUE)
     !inherits(result, "try-error") && result >= version
   })
+}
+
+packratOption <- function(envName, optionName, defaultValue) {
+
+  envValue <- Sys.getenv(envName, unset = NA)
+  if (!is.na(envValue))
+    return(envValue)
+
+  optionValue <- getOption(optionName)
+  if (!is.null(optionValue))
+    return(optionValue)
+
+  defaultValue
 }

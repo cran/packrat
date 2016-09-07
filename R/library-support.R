@@ -42,6 +42,10 @@ isPathToSamePackage <- function(source, target) {
   lhsPath <- file.path(source, "DESCRIPTION")
   rhsPath <- file.path(target, "DESCRIPTION")
 
+  # If either of these files do not exist, bail
+  if (!(file.exists(lhsPath) && file.exists(rhsPath)))
+    return(FALSE)
+
   lhsContents <- readChar(lhsPath, file.info(lhsPath)$size, TRUE)
   rhsContents <- readChar(rhsPath, file.info(rhsPath)$size, TRUE)
 
@@ -76,7 +80,19 @@ ensurePackageSymlink <- function(source, target) {
 
     # Remove the old symlink. Both junction points and symlinks
     # are safely removed with a simple, non-recursive unlink.
-    unlink(target)
+    try(unlink(target), silent = TRUE)
+
+    # Sometimes, on Windows, a failed attempt to call
+    # Sys.junction() can leave an empty folder behind. We
+    # need a recursive deletion to handle this.
+    if (is.windows() &&
+        file.exists(target) &&
+        utils::file_test("-d", target))
+    {
+      children <- list.files(target)
+      if (!length(children))
+        unlink(target, recursive = TRUE)
+    }
   }
 
   # If, for some reason, the target directory
@@ -89,7 +105,7 @@ ensurePackageSymlink <- function(source, target) {
   symlink(source, target)
 
   # Success if the file now exists
-  file.exists(target)
+  file.exists(file.path(target, "DESCRIPTION"))
 }
 
 symlinkExternalPackages <- function(project = NULL) {

@@ -6,13 +6,13 @@ pkgSrcFilename <- function(pkgRecord) {
     paste(pkgRecord$name, "_", pkgRecord$version, ".tar.gz", sep = "")
 }
 
-# Given a package record, indicate whether the package exists on a CRAN-like
-# repository.
-isFromCranlikeRepo <- function(pkgRecord) {
+# Given a package record and a set of known repositories, indicate whether the
+# package exists on a CRAN-like repository.
+isFromCranlikeRepo <- function(pkgRecord, repos) {
   identical(pkgRecord$source, "CRAN") ||
   identical(pkgRecord$source, "Bioconductor") ||
   inherits(pkgRecord, "CustomCRANLikeRepository") ||
-  (length(pkgRecord$source) && pkgRecord$source %in% names(getOption("repos")))
+  (length(pkgRecord$source) && pkgRecord$source %in% names(repos))
 }
 
 # Given a package record and a database of packages, check to see if
@@ -112,7 +112,7 @@ getSourceForPkgRecord <- function(pkgRecord,
       }
     })
     type <- "local"
-  } else if (isFromCranlikeRepo(pkgRecord)) {
+  } else if (isFromCranlikeRepo(pkgRecord, repos)) {
 
     # Attempt to detect if this is the current version of a package
     # on a CRAN-like repository
@@ -120,6 +120,18 @@ getSourceForPkgRecord <- function(pkgRecord,
       availablePkgs[pkgRecord$name, "Version"]
     else
       NA
+
+    # Is the reported package version from 'available.packages()'
+    # newer than that reported from CRAN? If so, we may be attempting
+    # to install a package version not compatible with this version of
+    # R.
+    if (!is.na(currentVersion) && is.character(pkgRecord$version)) {
+      compared <- utils::compareVersion(currentVersion, pkgRecord$version)
+      if (compared == -1) {
+        warning("Package version '%s' is newer than the latest version reported ",
+                "by CRAN ('%s') -- packrat may be unable to retrieve package sources.")
+      }
+    }
 
     # Is the source for this version of the package on CRAN and/or a
     # Bioconductor repo?
@@ -169,12 +181,12 @@ getSourceForPkgRecord <- function(pkgRecord,
       }
       if (!foundVersion) {
         message("FAILED")
-        stopMsg <- sprintf("Couldn't find source for version %s of %s",
-                           pkgRecord$version,
-                           pkgRecord$name)
+        stopMsg <- sprintf("Failed to retrieve package sources for %s %s from CRAN (internet connectivity issue?)",
+                           pkgRecord$name,
+                           pkgRecord$version)
 
         if (!is.na(currentVersion))
-          stopMsg <- paste(stopMsg, sprintf("(%s is current)", currentVersion))
+          stopMsg <- paste(stopMsg, sprintf("[%s is current]", currentVersion))
 
         stop(stopMsg)
       }
@@ -195,13 +207,8 @@ getSourceForPkgRecord <- function(pkgRecord,
     else
       "https"
 
-    hostname <- "www.github.com"
-    path <- file.path(pkgRecord$gh_username,
-                      pkgRecord$gh_repo,
-                      "archive",
-                      join(pkgRecord$gh_sha1, ".tar.gz"))
-
-    archiveUrl <- join(protocol, "://", hostname, "/", path)
+    fmt <- "%s://api.github.com/repos/%s/%s/tarball/%s"
+    archiveUrl <- sprintf(fmt, protocol, pkgRecord$gh_username, pkgRecord$gh_repo, pkgRecord$gh_sha1)
 
     srczip <- tempfile(fileext = '.tar.gz')
     on.exit({
@@ -436,7 +443,7 @@ installPkg <- function(pkgRecord,
   }
 
   if (!(copiedFromCache) &&
-        isFromCranlikeRepo(pkgRecord) &&
+        isFromCranlikeRepo(pkgRecord, repos) &&
         pkgRecord$name %in% rownames(availablePkgs) &&
         versionMatchesDb(pkgRecord, availablePkgs) &&
         !identical(getOption("pkgType"), "source")) {
@@ -581,10 +588,17 @@ restoreImpl <- function(project,
                         pkgsToIgnore = character(),
                         prompt = interactive(),
                         dry.run = FALSE,
-                        restart = TRUE) {
+                        restart = TRUE)
+{
+  # optionally overlay the 'src' directory from a custom location
+  overlaySourcePackages(srcDir(project))
 
   # We also ignore restores for packages specified in external.packages
-  pkgsToIgnore <- c(pkgsToIgnore, opts$external.packages())
+  pkgsToIgnore <- c(
+    pkgsToIgnore,
+    packrat::opts$external.packages(),
+    packrat::opts$ignored.packages()
+  )
 
   installedPkgs <- rownames(installed.packages(lib.loc = lib))
   installedPkgs <- setdiff(installedPkgs, c("manipulate", "rstudio"))
@@ -710,3 +724,39 @@ detachPackageForInstallationIfNecessary <- function(pkg) {
   TRUE
 }
 
+overlaySourcePackages <- function(srcDir, overlayDir = NULL) {
+  if (is.null(overlayDir))
+    overlayDir <- Sys.getenv("R_PACKRAT_SRC_OVERLAY")
+
+  if (!is.character(overlayDir) || !is.directory(overlayDir))
+    return()
+
+  overlayDir <- normalizePath(overlayDir, winslash = "/", mustWork = TRUE)
+  sources <- list.files(
+    overlayDir,
+    recursive = TRUE,
+    full.names = FALSE,
+    no.. = TRUE,
+    include.dirs = FALSE,
+    pattern = "\\.tar\\.gz$"
+  )
+
+  lapply(sources, function(source) {
+    target <- file.path(srcDir, source)
+    source <- file.path(overlayDir, source)
+
+    # skip if this tarball already exists in the target directory
+    if (file.exists(target)) next
+
+    # attempt to symlink source to target
+    dir.create(dirname(target), recursive = TRUE, showWarnings = FALSE)
+    if (!is.directory(dirname(target)))
+      stop("failed to create directory '", dirname(target), "'")
+
+    # generate symlink
+    symlink(source, target)
+
+    # report success
+    file.exists(target)
+  })
+}

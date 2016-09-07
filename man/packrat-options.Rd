@@ -10,7 +10,7 @@
 \usage{
 get_opts(options = NULL, simplify = TRUE, project = NULL)
 
-set_opts(..., project = NULL)
+set_opts(..., project = NULL, persist = TRUE)
 
 opts
 }
@@ -24,6 +24,8 @@ a single option.}
 otherwise, defaults to the current working directory.}
 
 \item{...}{Entries of the form \code{key = value}, used for setting packrat project options.}
+
+\item{persist}{Boolean; persist these options for future sessions?}
 }
 \description{
 Get and set options for the current packrat-managed project.
@@ -78,6 +80,10 @@ Get and set options for the current packrat-managed project.
   with CRAN releases of R on OS X and Windows, but new releases are also
   available on the CRAN server.
   (logical; defaults to \code{FALSE})
+\item \code{snapshot.fields}:
+  What fields of a package's DESCRIPTION file should be used when discovering
+  dependencies?
+  (character, defaults to \code{c("Imports", "Depends", "LinkingTo")})
 }
 }
 \examples{

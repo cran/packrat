@@ -28,8 +28,7 @@ new in Packrat.
 
 Start by installing Packrat:
 
-    if (!require("devtools")) install.packages("devtools")
-    devtools::install_github("rstudio/packrat")
+    install.packages("packrat")
 
 Then, start a new R session at the base directory of your project and type:
 
@@ -66,7 +65,7 @@ CRAN-like repositories):
   repository.
 
 For example, suppose I have the (unzipped) package sources for
-[`digest`](http://cran.r-project.org/package=digest) located
+[`digest`](https://cran.r-project.org/package=digest) located
 within the folder`~/git/R/digest/`. To install this package, you can use:
 
     packrat::set_opts(local.repos = "~/git/R")
