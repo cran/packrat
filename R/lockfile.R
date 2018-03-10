@@ -55,7 +55,7 @@ writeLockFile <- function(file, lockinfo) {
     fieldNames <- collectFieldNames(packages)
     packageInfo <- lapply(fieldNames, function(fieldName) {
       values <- data.frame(vapply(packages, function(pkg) {
-        if (!is.null(pkg[[fieldName]]))
+        if (length(pkg[[fieldName]]))
           pkg[[fieldName]]
         else
           NA_character_
@@ -279,6 +279,10 @@ aliases <- c(
   GithubRef = "gh_ref",
   GithubSha1 = "gh_sha1",
   GithubSubdir = "gh_subdir",
+  RemoteHost = "remote_host",
+  RemoteRepo = "remote_repo",
+  RemoteUsername = "remote_username",
+  RemoteSha = "remote_sha",
   SourcePath = "source_path",
   Hash = "hash"
 )

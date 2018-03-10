@@ -22,3 +22,33 @@ test_that("dependencies are properly resolved in expressions", {
   ))
 
 })
+
+
+test_that("dependencies are discovered in R Markdown documents using alternate engines", {
+  altEngineRmd <- file.path("resources", "alternate-engines.Rmd")
+  expect_true("testthat" %in% packrat:::fileDependencies(altEngineRmd))
+})
+
+test_that("dependencies are discovered in R Markdown documents with R chunks", {
+  ordinaryRmd <- file.path("resources", "params-example.Rmd")
+  expect_true("rmarkdown" %in% packrat:::fileDependencies(ordinaryRmd))
+})
+
+test_that("dependencies are discovered in R Markdown documents with no chunks", {
+  chunklessRmd <- file.path("resources", "no-chunks.Rmd")
+  expect_true("rmarkdown" %in% packrat:::fileDependencies(chunklessRmd))
+})
+
+test_that("dependencies are discovered in inline R code", {
+
+  # ensure that we've restored 'inline_exec' properly at the end
+  inline_exec <- yoink("knitr", "inline_exec")
+  on.exit(
+    expect_identical(inline_exec, yoink("knitr", "inline_exec")),
+    add = TRUE
+  )
+
+  # run the regular test
+  emojiRmd <- file.path("resources", "emoji.Rmd")
+  expect_true("emo" %in% packrat:::fileDependencies(emojiRmd))
+})

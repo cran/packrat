@@ -9,10 +9,24 @@ pkgSrcFilename <- function(pkgRecord) {
 # Given a package record and a set of known repositories, indicate whether the
 # package exists on a CRAN-like repository.
 isFromCranlikeRepo <- function(pkgRecord, repos) {
-  identical(pkgRecord$source, "CRAN") ||
-  identical(pkgRecord$source, "Bioconductor") ||
-  inherits(pkgRecord, "CustomCRANLikeRepository") ||
-  (length(pkgRecord$source) && pkgRecord$source %in% names(repos))
+
+  # for package records inferred from a DESCRIPTION file, we know
+  # whether a package came from a CRAN-like repository
+  if (inherits(pkgRecord, "CustomCRANLikeRepository"))
+    return(TRUE)
+
+  # TODO: this shouldn't happen, but if it does we'll assume the package
+  # can be obtained from CRAN
+  source <- pkgRecord$source
+  if (!length(source))
+    return(TRUE)
+
+  # for records that do declare a source, ensure it's not 'source' or 'github'.
+  # in previous releases of packrat, we attempted to match the repository name
+  # with one of the existing repositories; however, this caused issues in
+  # certain environments (the names declared repositories in the lockfile, and
+  # the the names of the active repositories in the R session, may not match)
+  !tolower(source) %in% c("source", "github")
 }
 
 # Given a package record and a database of packages, check to see if
@@ -128,8 +142,12 @@ getSourceForPkgRecord <- function(pkgRecord,
     if (!is.na(currentVersion) && is.character(pkgRecord$version)) {
       compared <- utils::compareVersion(currentVersion, pkgRecord$version)
       if (compared == -1) {
-        warning("Package version '%s' is newer than the latest version reported ",
-                "by CRAN ('%s') -- packrat may be unable to retrieve package sources.")
+        fmt <- paste(
+          "Package version '%s' is newer than the latest version reported",
+          "by CRAN ('%s') -- packrat may be unable to retrieve package sources."
+        )
+        msg <- sprintf(fmt, pkgRecord$version, currentVersion)
+        warning(msg)
       }
     }
 
@@ -141,14 +159,14 @@ getSourceForPkgRecord <- function(pkgRecord,
       # generate an available package listing for _binary_ packages,
       # rather than source packages. Leave it NULL and let R do the
       # right thing
-      fileLoc <- download.packages(pkgRecord$name,
-                                   destdir = pkgSrcDir,
-                                   repos = repos,
-                                   type = "source",
-                                   quiet = TRUE)
-      if (!nrow(fileLoc))
-        warning("Failed to download current version of ", pkgRecord$name,
-                "(", pkgRecord$version, ")")
+      fileLoc <- downloadPackagesWithRetries(pkgRecord$name,
+                                             destdir = pkgSrcDir,
+                                             repos = repos,
+                                             type = "source")
+      if (!nrow(fileLoc)) {
+        stop("Failed to download current version of ", pkgRecord$name,
+             "(", pkgRecord$version, ")")
+        }
 
       # If the file wasn't saved to the destination directory (which can happen
       # if the repo is local--see documentation in download.packages), copy it
@@ -202,13 +220,28 @@ getSourceForPkgRecord <- function(pkgRecord,
       error = function(e) "internal"
     )
 
-    protocol <- if (identical(method, "internal"))
-      "http"
-    else
-      "https"
-
-    fmt <- "%s://api.github.com/repos/%s/%s/tarball/%s"
-    archiveUrl <- sprintf(fmt, protocol, pkgRecord$gh_username, pkgRecord$gh_repo, pkgRecord$gh_sha1)
+    if (is.null(pkgRecord$remote_host) || !nzchar(pkgRecord$remote_host)) {
+      # Guard against packages installed with older versions of devtools
+      # (it's possible the associated package record will not contain a
+      # 'remote_host' entry)
+      protocol <- if (identical(method, "internal")) "http" else "https"
+      fmt <- "%s://api.github.com/repos/%s/%s/tarball/%s"
+      archiveUrl <- sprintf(fmt,
+                            protocol,
+                            pkgRecord$gh_username,
+                            pkgRecord$gh_repo,
+                            pkgRecord$gh_sha1)
+    } else {
+      # Prefer using the 'remote_host' entry as it allows for successfuly
+      # installation of packages available on private GitHub repositories
+      # (which will not use api.github.com)
+      fmt <- "%s/repos/%s/%s/tarball/%s"
+      archiveUrl <- sprintf(fmt,
+                            pkgRecord$remote_host,
+                            pkgRecord$remote_username,
+                            pkgRecord$remote_repo,
+                            pkgRecord$remote_sha)
+    }
 
     srczip <- tempfile(fileext = '.tar.gz')
     on.exit({
@@ -216,7 +249,8 @@ getSourceForPkgRecord <- function(pkgRecord,
         unlink(srczip, recursive = TRUE)
     }, add = TRUE)
 
-    if (!downloadWithRetries(archiveUrl, destfile = srczip, quiet = TRUE, mode = "wb")) {
+    status <- githubDownload(archiveUrl, srczip)
+    if (status) {
       message("FAILED")
       stop("Failed to download package from URL:\n- ", shQuote(archiveUrl))
     }
@@ -286,8 +320,7 @@ snapshotSources <- function(project, repos, pkgRecords) {
                        pkgRecords)
 
   # Get a list of source packages available on the repositories
-  availablePkgs <- available.packages(contrib.url(repos, "source"),
-                                      type = "source")
+  availablePkgs <- availablePackagesSource(repos = repos)
 
   # Find the source directory (create it if necessary)
   sourceDir <- srcDir(project)
@@ -369,11 +402,9 @@ removePkgs <- function(project, pkgNames, lib.loc = libDir(project)) {
 # the package (built source, downloaded binary, etc.)
 installPkg <- function(pkgRecord,
                        project,
-                       availablePkgs,
                        repos,
-                       lib = libDir(project),
-                       cache) {
-
+                       lib = libDir(project))
+{
   pkgSrc <- NULL
   type <- "built source"
   needsInstall <- TRUE
@@ -389,64 +420,59 @@ installPkg <- function(pkgRecord,
   # restore it if, for some reason, package installation failed.
   pkgInstallPath <- file.path(lib, pkgRecord$name)
 
-  if (file.exists(pkgInstallPath) && is.symlink(pkgInstallPath)) {
+  # NOTE: a symlink that points to a path that doesn't exist
+  # will return FALSE when queried by `file.exists()`!
+  if (file.exists(pkgInstallPath) || is.symlink(pkgInstallPath)) {
 
-    resolvedPath <- tryCatch(
-      normalizePath(pkgInstallPath, mustWork = TRUE),
-      error = function(e) NULL
-    )
+    temp <- tempfile(tmpdir = lib)
+    file.rename(pkgInstallPath, temp)
+    on.exit({
+      if (file.exists(pkgInstallPath))
+        unlink(temp, recursive = !is.symlink(temp))
+      else
+        file.rename(temp, pkgInstallPath)
+    }, add = TRUE)
 
-    if (!is.null(resolvedPath)) {
-      unlink(pkgInstallPath)
-      on.exit(add = TRUE, {
-        if (!file.exists(pkgInstallPath)) {
-          symlink(resolvedPath, pkgInstallPath)
-        }
-      })
-    }
   }
 
-  # Generally we want to install from sources, but we will download a pre-
-  # built binary if (a) the package exists on CRAN, (b) the version on CRAN
-  # is the version desired, and (c) R is set to download binaries. We also
-  # just copy a symlink from the cache if possible.
-  copiedFromCache <- FALSE
-  if (isUsingCache(project) &&
-      length(pkgRecord$hash) &&
-      isCacheable(pkgRecord$name) &&
-      pkgRecord$hash %in% cache) {
-
-    # This package has already been installed in the cache; just symlink
-    # to that if possible, or copy otherwise
-    success <- suppressWarnings(symlink(
-      file.path(cacheLibDir(pkgRecord$name, pkgRecord$hash, pkgRecord$name)),
-      file.path(libDir(project), pkgRecord$name)
-    ))
-
-    if (success) {
-      type <- "symlinked cache"
-      needsInstall <- FALSE
-    } else {
-      ## just copy the directory over instead of symlinking
-      success <- all(dir_copy(
-        file.path(cacheLibDir(pkgRecord$name, pkgRecord$hash)),
-        file.path(libDir(project), pkgRecord$name)
-      ))
-      if (!success) {
-        warning("Failed to symlink or copy package '", pkgRecord$name, "' from cache")
-      } else {
-        type <- "copied cache"
-        needsInstall <- FALSE
-      }
-    }
-    copiedFromCache <- success
+  # Try restoring the package from the global cache.
+  cacheCopyStatus <- new.env(parent = emptyenv())
+  copiedFromCache <- restoreWithCopyFromCache(project, pkgRecord, cacheCopyStatus)
+  if (copiedFromCache) {
+    type <- cacheCopyStatus$type
+    needsInstall <- FALSE
   }
 
-  if (!(copiedFromCache) &&
+  # Try restoring the package from the 'unsafe' cache, if applicable.
+  copiedFromUntrustedCache <- restoreWithCopyFromUntrustedCache(project, pkgRecord, cacheCopyStatus)
+  if (copiedFromUntrustedCache) {
+    type <- cacheCopyStatus$type
+    needsInstall <- FALSE
+  }
+
+  # if we still need to attempt an installation at this point,
+  # remove a prior installation / file from library (if necessary).
+  # we move the old directory out of the way temporarily, and then
+  # delete if if all went well, or restore it if installation failed
+  # for some reason
+  if (needsInstall && file.exists(pkgInstallPath)) {
+    pkgRenamePath <- tempfile(tmpdir = lib)
+    file.rename(pkgInstallPath, pkgRenamePath)
+    on.exit({
+      if (file.exists(pkgInstallPath))
+        unlink(pkgRenamePath, recursive = !is.symlink(pkgRenamePath))
+      else
+        file.rename(pkgRenamePath, pkgInstallPath)
+    }, add = TRUE)
+  }
+
+  # Try downloading a binary (when appropriate).
+  if (!(copiedFromCache || copiedFromUntrustedCache) &&
+        hasBinaryRepositories() &&
         isFromCranlikeRepo(pkgRecord, repos) &&
-        pkgRecord$name %in% rownames(availablePkgs) &&
-        versionMatchesDb(pkgRecord, availablePkgs) &&
-        !identical(getOption("pkgType"), "source")) {
+        pkgRecord$name %in% rownames(availablePackagesBinary(repos = repos)) &&
+        versionMatchesDb(pkgRecord, availablePackagesBinary(repos = repos)))
+  {
     tempdir <- tempdir()
     tryCatch({
       # install.packages emits both messages and standard output; redirect these
@@ -455,22 +481,19 @@ installPkg <- function(pkgRecord,
       # on windows, we need to detach the package before installation
       detachPackageForInstallationIfNecessary(pkgRecord$name)
 
-      # If pkgType is 'both', the availablePkgs inferred will be wrong.
-      # The default behaviour for `available.packages()`,
-      # when `pkgType == "both"`.
-      pkgType <- getOption("pkgType")
-      if (identical(pkgType, "both"))
-        availablePkgs <- NULL
-
       suppressMessages(
         capture.output(
           utils::install.packages(pkgRecord$name,
                                   lib = lib,
                                   repos = repos,
-                                  available = availablePkgs,
+                                  type = .Platform$pkgType,
+                                  available = availablePackagesBinary(repos = repos),
                                   quiet = TRUE,
                                   dependencies = FALSE,
-                                  verbose = FALSE)))
+                                  verbose = FALSE)
+        )
+      )
+
       type <- "downloaded binary"
       needsInstall <- FALSE
     }, error = function(e) {
@@ -494,7 +517,7 @@ installPkg <- function(pkgRecord,
       # missing.)
       getSourceForPkgRecord(pkgRecord,
                             srcDir(project),
-                            availablePkgs,
+                            availablePackagesSource(repos = repos),
                             repos,
                             quiet = TRUE)
       if (!file.exists(pkgSrc)) {
@@ -528,18 +551,44 @@ installPkg <- function(pkgRecord,
   # Annotate DESCRIPTION file so we know we installed it
   annotatePkgDesc(pkgRecord, project, lib)
 
+  # copy package into cache if enabled
+  if (isUsingCache(project)) {
+    pkgPath <- file.path(lib, pkgRecord$name)
+
+    # copy into global cache if this is a trusted package
+    if (isTrustedPackage(pkgRecord$name)) {
+      descPath <- file.path(pkgPath, "DESCRIPTION")
+      if (!file.exists(descPath)) {
+        warning("cannot cache package: no DESCRIPTION file at path '", descPath, "'")
+      } else {
+        hash <- hash(descPath)
+        moveInstalledPackageToCache(
+          packagePath = pkgPath,
+          hash = hash,
+          cacheDir = cacheLibDir()
+        )
+      }
+    } else {
+      pkgPath <- file.path(lib, pkgRecord$name)
+      tarballName <- pkgSrcFilename(pkgRecord)
+      tarballPath <- file.path(srcDir(project), pkgRecord$name, tarballName)
+      if (!file.exists(tarballPath)) {
+        warning("cannot cache untrusted package: source tarball not available")
+      } else {
+        hash <- hashTarball(tarballPath)
+        moveInstalledPackageToCache(
+          packagePath = pkgPath,
+          hash = hash,
+          cacheDir = untrustedCacheLibDir()
+        )
+      }
+    }
+  }
+
   return(type)
 }
 
 playActions <- function(pkgRecords, actions, repos, project, lib) {
-
-  # Get the list of available packages and the latest version of those packages
-  # from the repositories, and the local install list for comparison
-  availablePkgs <- available.packages(contrib.url(repos))
-
-  # Get the set of hashes for cached packages
-  cachedPkgs <- list.files(cacheLibDir(), full.names = TRUE)
-  cache <- unlist(lapply(cachedPkgs, list.files))
 
   installedPkgs <- installed.packages(priority = c("NA", "recommended"))
   targetPkgs <- searchPackages(pkgRecords, names(actions))
@@ -575,7 +624,7 @@ playActions <- function(pkgRecords, actions, repos, project, lib) {
       message("OK")
       next
     }
-    type <- installPkg(pkgRecord, project, availablePkgs, repos, lib, cache)
+    type <- installPkg(pkgRecord, project, repos, lib)
     message("\tOK (", type, ")")
   }
   invisible()
@@ -592,6 +641,8 @@ restoreImpl <- function(project,
 {
   # optionally overlay the 'src' directory from a custom location
   overlaySourcePackages(srcDir(project))
+
+  discoverUntrustedPackages(srcDir(project))
 
   # We also ignore restores for packages specified in external.packages
   pkgsToIgnore <- c(
@@ -676,7 +727,6 @@ restoreImpl <- function(project,
   # Play the list, if there's anything to play
   if (!dry.run) {
     playActions(pkgRecords, actions, repos, project, targetLib)
-    moveInstalledPackagesToCache(project)
     if (restartNeeded) {
       if (!restart || !attemptRestart())
         message("You must restart R to finish applying these changes.")
@@ -724,6 +774,16 @@ detachPackageForInstallationIfNecessary <- function(pkg) {
   TRUE
 }
 
+discoverUntrustedPackages <- function(srcDir) {
+  if (is.na(Sys.getenv("RSTUDIO_CONNECT", unset = NA)))
+    return()
+
+  # set the 'packrat.untrusted.packages' option if
+  # it has not yet been specified
+  if (is.null(getOption("packrat.untrusted.packages")))
+    options("packrat.untrusted.packages" = list.files(srcDir))
+}
+
 overlaySourcePackages <- function(srcDir, overlayDir = NULL) {
   if (is.null(overlayDir))
     overlayDir <- Sys.getenv("R_PACKRAT_SRC_OVERLAY")
@@ -746,7 +806,8 @@ overlaySourcePackages <- function(srcDir, overlayDir = NULL) {
     source <- file.path(overlayDir, source)
 
     # skip if this tarball already exists in the target directory
-    if (file.exists(target)) next
+    if (file.exists(target))
+      return(NULL)
 
     # attempt to symlink source to target
     dir.create(dirname(target), recursive = TRUE, showWarnings = FALSE)

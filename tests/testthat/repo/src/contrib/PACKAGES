@@ -1,7 +1,7 @@
 Package: bread
 Version: 1.0.0
 License: GPL
-MD5sum: 67d84e36d4ef234bed8662c268ac8a0a
+MD5sum: c58bb06b599de5f4369904fb3038c7dc
 NeedsCompilation: no
 Path: ./bread
 
@@ -9,21 +9,33 @@ Package: breakfast
 Version: 1.0.0
 Depends: oatmeal, toast
 License: GPL
-MD5sum: 9d20db306fb493f02677537bd99ec223
+MD5sum: 2e98a23b0c16e33ae39f7a258263f00a
 NeedsCompilation: no
 Path: ./breakfast
+
+Package: bread
+Version: 1.0.0
+LinkingTo: yolk
+License: GPL
+MD5sum: 8f6b23f91873a7e5f2b9341ebf58388a
+NeedsCompilation: no
+Path: ./egg
 
 Package: oatmeal
 Version: 1.0.0
 License: GPL
-MD5sum: 90e8ff14f86231364c346b289778aa8b
+MD5sum: 37304fd7c75813e9716c1fb62dea1868
 NeedsCompilation: no
 Path: ./oatmeal
 
 Package: packrat
-Version: 0.0.0
-License: GPL
-MD5sum: 7f16d8965dc99e8612cdf61c1aa4a6b8
+Version: 0.4.8-58
+Depends: R (>= 3.0.0)
+Imports: tools, utils
+Suggests: testthat (>= 0.7), devtools, httr, knitr, rmarkdown
+Enhances: BiocInstaller
+License: GPL-2
+MD5sum: 82a4678e9f184171b1529244fda29eb0
 NeedsCompilation: no
 Path: ./packrat
 
@@ -31,7 +43,6 @@ Package: toast
 Version: 1.0.0
 Depends: bread
 License: GPL
-MD5sum: 94983eced5faba874146ebaf8f317627
+MD5sum: d2d71b6b79b5b80e8c8c1c7571aa98e9
 NeedsCompilation: no
 Path: ./toast
-

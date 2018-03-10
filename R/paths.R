@@ -1,14 +1,73 @@
-## Different paths that are used for a packrat project
+#' Paths to Packrat Resources
+#'
+#' These functions provide a mechanism for retrieving the paths to
+#' Packrat resource directories. Each of these directories can be
+#' overridden by setting either an environment variable, or an \R
+#' option.
+#'
+#' @section Project Directory:
+#'
+#' \code{project_dir()} is special -- the \code{R_PACKRAT_PROJECT_DIR}
+#' environment variable is set and unset by \code{\link{on}} and
+#' \code{\link{off}}, respectively, and generally should not be
+#' overridden by the user.
+#'
+#' @section Directory Resolution:
+#'
+#' The following table shows the order in which resource directories
+#' are discovered (from left to right). The first non-empty result is
+#' used.
+#'
+#' \tabular{llll}{
+#' \strong{API}         \tab \strong{Environment Variable} \tab \strong{R Option}          \tab \strong{Default Value} \cr
+#' \code{project_dir()} \tab \code{R_PACKRAT_PROJECT_DIR}  \tab \code{packrat.project.dir} \tab \code{getwd()} \cr
+#' \code{src_dir()}     \tab \code{R_PACKRAT_SRC_DIR}      \tab \code{packrat.src.dir}     \tab \code{"packrat/src"} \cr
+#' \code{lib_dir()}     \tab \code{R_PACKRAT_LIB_DIR}      \tab \code{packrat.lib.dir}     \tab \code{"packrat/lib"} \cr
+#' \code{bundles_dir()} \tab \code{R_PACKRAT_BUNDLES_DIR}  \tab \code{packrat.bundles.dir} \tab \code{"packrat/bundles"} \cr
+#' \emph{(none)}        \tab \code{R_PACKRAT_LIB_R_DIR}    \tab \code{packrat.lib-r.dir}   \tab \code{"packrat/lib-R"} \cr
+#' \emph{(none)}        \tab \code{R_PACKRAT_LIB_EXT_DIR}  \tab \code{packrat.lib-ext.dir} \tab \code{"packrat/lib-ext"} \cr
+#' }
+#'
+#' @param project The project directory.
+#' @rdname packrat-resources
+#' @name packrat-resources
+NULL
+
+#' @rdname packrat-resources
+#' @export
+project_dir <- function(project = NULL) {
+  getProjectDir(project = project)
+}
+
+#' @rdname packrat-resources
+#' @export
+src_dir <- function(project = NULL) {
+  srcDir(project = project)
+}
+
+#' @rdname packrat-resources
+#' @export
+lib_dir <- function(project = NULL) {
+  libDir(project = project)
+}
+
+#' @rdname packrat-resources
+#' @export
+bundles_dir <- function(project = NULL) {
+  bundlesDir(project = project)
+}
+
+# Internal Implementations ----
 
 getProjectDir <- function(project = NULL) {
 
-  if (!is.null(project))
+  if (!is.null(project) && length(project) > 0)
     return(normalizePath(project, winslash = "/", mustWork = TRUE))
 
   packratOption(
-    .packrat.env$R_PACKRAT_PROJECT_DIR,
+    "R_PACKRAT_PROJECT_DIR",
     "packrat.project.dir",
-    normalizePath(project %||% getwd(), winslash = "/", mustWork = TRUE)
+    if (length(getwd()) > 0) normalizePath(getwd(), winslash = "/", mustWork = TRUE) else ""
   )
 }
 
@@ -17,16 +76,47 @@ getPackratDir <- function(project = NULL) {
   file.path(project, "packrat")
 }
 
-# We differentiate between the 'libDir' -- the actual architecture-specific
-# directory containing libraries for the current system, and the 'libraryRootDir'
-# containing all libraries for a given project (which may want to be copied around
-# -- unlikely since we encourage people to build from snapshots, but we leave it
-# possible)
+platformRelDir <- function() {
+  file.path(R.version$platform, getRversion())
+}
+
 libDir <- function(project = NULL) {
   packratOption(
-    .packrat.env$R_PACKRAT_LIB_DIR,
+    "R_PACKRAT_LIB_DIR",
     "packrat.lib.dir",
-    file.path(libraryRootDir(project), R.version$platform, getRversion())
+    file.path(libraryRootDir(project), platformRelDir())
+  )
+}
+
+libRdir <- function(project = NULL) {
+  packratOption(
+    "R_PACKRAT_LIB_R_DIR",
+    "packrat.lib-r.dir",
+    file.path(getPackratDir(project), "lib-R", platformRelDir())
+  )
+}
+
+libExtDir <- function(project = NULL) {
+  packratOption(
+    "R_PACKRAT_LIB_EXT_DIR",
+    "packrat.lib-ext.dir",
+    file.path(getPackratDir(project), "lib-ext", platformRelDir())
+  )
+}
+
+srcDir <- function(project = NULL) {
+  packratOption(
+    "R_PACKRAT_SRC_DIR",
+    "packrat.src.dir",
+    file.path(getPackratDir(project), "src")
+  )
+}
+
+bundlesDir <- function(project = NULL) {
+  packratOption(
+    "R_PACKRAT_BUNDLES_DIR",
+    "packrat.bundles.dir",
+    file.path(getPackratDir(project), "bundles")
   )
 }
 
@@ -65,24 +155,8 @@ relOldLibraryDir <- function() {
   "packrat/library.old"
 }
 
-srcDir <- function(project = NULL) {
-  packratOption(
-    .packrat.env$R_PACKRAT_SRC_DIR,
-    "packrat.src.dir",
-    file.path(getPackratDir(project), "src")
-  )
-}
-
 relSrcDir <- function() {
   "packrat/src"
-}
-
-bundlesDir <- function(project = NULL) {
-  packratOption(
-    "R_PACKRAT_BUNDLES_DIR",
-    "packrat.bundles.dir",
-    file.path(getPackratDir(project), "bundles")
-  )
 }
 
 lockFilePath <- function(project = NULL) {
@@ -114,14 +188,6 @@ instMacRUserlibFilePath <- function() {
 
 packratOptionsFilePath <- function(project = NULL) {
   file.path(getPackratDir(project), "packrat.opts")
-}
-
-libRdir <- function(project = NULL) {
-  file.path(getPackratDir(project), "lib-R")
-}
-
-libExtDir <- function(project = NULL) {
-  file.path(getPackratDir(project), "lib-ext")
 }
 
 startsWithBytes <- function(x, y) {
@@ -166,7 +232,7 @@ packrat_lib <- function() {
 ## A location where "global" packrat data is stored, e.g. the library cache
 appDataDir <- function() {
   packratOption(
-    .packrat.env$R_PACKRAT_CACHE_DIR,
+    "R_PACKRAT_CACHE_DIR",
     "packrat.cache.dir",
     defaultAppDataDir()
   )
@@ -204,4 +270,8 @@ packratCacheVersion <- function() {
 
 cacheLibDir <- function(...) {
   file.path(appDataDir(), packratCacheVersion(), "library", ...)
+}
+
+untrustedCacheLibDir <- function(...) {
+  file.path(appDataDir(), packratCacheVersion(), "library-client", ...)
 }

@@ -218,31 +218,38 @@ stopIfNotPackified <- function(project) {
   }
 }
 
-## Expected to be used with .Rbuildignore, .Rinstignore
-## .gitignore + SVN ignore have their own (similar) logical, but
-## need to handle options specially
+# Expected to be used with .Rbuildignore, .Rinstignore
+# .gitignore + SVN ignore have their own (similar) logical, but
+# need to handle options specially
 updateIgnoreFile <- function(project = NULL, file, add = NULL, remove = NULL) {
 
   project <- getProjectDir(project)
 
-  ## If the file doesn't exist and we have content, create and fill it
+  # if no ignore file exists, populate it
   path <- file.path(project, file)
   if (!file.exists(path)) {
-    if (length(add) > 0) {
+    if (length(add) > 0)
       cat(add, file = path, sep = "\n")
-    }
     return(invisible())
   }
 
-  ## If it already exists, add and remove as necessary, otherwise do nothing
-  content <- readLines(path)
-  newContent <- union(content, add)
-  newContent <- setdiff(newContent, remove)
-  if (!setequal(content, newContent)) {
-    cat(newContent, file = path, sep = "\n")
-  }
-  return(invisible())
+  # read ignore file and track changes
+  oldContent <- readLines(path)
+  newContent <- oldContent
 
+  # add items to end of ignore file (avoid duplication of entries)
+  if (length(add))
+    newContent <- c(newContent, setdiff(add, newContent))
+
+  # remove items from ignore file
+  if (length(remove))
+    newContent <- newContent[!(newContent %in% remove)]
+
+  # only mutate ignore file if contents have indeed changed
+  if (!identical(oldContent, newContent))
+    cat(newContent, file = path, sep = "\n")
+
+  return(invisible())
 }
 
 updateRBuildIgnore <- function(project = NULL) {
@@ -372,7 +379,7 @@ getUserLibPaths <- function() {
 ## Get the default library paths (those that would be used upon
 ## starting a new R session)
 getDefaultLibPaths <- function() {
-  getenv(.packrat.env$R_PACKRAT_DEFAULT_LIBPATHS)
+  getenv("R_PACKRAT_DEFAULT_LIBPATHS")
 }
 
 getInstalledPkgInfo <- function(packages, installed.packages, ...) {
@@ -543,26 +550,6 @@ reFilePrefix <- function() {
   paste("^", filePrefix(), sep = "")
 }
 
-# Call 'available.packages()' with an invalid URL to get the
-# 'skeleton' output of 'available.packages()' (ie, an empty matrix
-# with all appropriate fields populated)
-availablePackagesSkeleton <- function() {
-
-  # Use internal download file method just to ensure no errors leak.
-  download.file.method <- getOption("download.file.method")
-  on.exit(options(download.file.method = download.file.method), add = TRUE)
-  options(download.file.method = "internal")
-
-  # Use 'available.packages()' to query a URL that doesn't exist
-  result <- withCallingHandlers(
-    available.packages("/no/such/path/here/i/hope/"),
-    warning = function(w) invokeRestart("muffleWarning"),
-    message = function(m) invokeRestart("muffleMessage")
-  )
-
-  result
-}
-
 isProgramOnPath <- function(program) {
   nzchar(Sys.which(program)[[1]])
 }
@@ -648,4 +635,47 @@ packratOption <- function(envName, optionName, defaultValue) {
     return(optionValue)
 
   defaultValue
+}
+
+packratOptionBoolean <- function(envName, optionName, defaultValue) {
+
+  option <- packratOption(envName, optionName, defaultValue)
+
+  if (is.character(option)) {
+    option <- if (!nzchar(option))
+      FALSE
+    else if (tolower(option) %in% c("t", "true", "y", "yes"))
+      TRUE
+    else if (tolower(option) %in% c("f", "false", "n", "no"))
+      FALSE
+    else
+      as.logical(eval(parse(text = option)))
+  }
+
+  as.logical(option)
+}
+
+ensureDirectory <- function(path) {
+
+  info <- file.info(path)
+  if (identical(info$isdir, TRUE))
+    return(path)
+  else if (identical(info$isdir, FALSE))
+    stop("path '", path, "' exists but is not a directory")
+  else if (!dir.create(path, recursive = TRUE))
+    stop("failed to create directory at path '", path, "'")
+
+  path
+}
+
+quietly <- function(expr) {
+  withCallingHandlers(
+    tryCatch(expr = expr, error = identity),
+    warning = function(w) invokeRestart("muffleWarning"),
+    message = function(m) invokeRestart("muffleMessage")
+  )
+}
+
+onError <- function(default, expr) {
+  tryCatch(expr, error = function(e) default)
 }

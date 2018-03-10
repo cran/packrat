@@ -78,20 +78,25 @@ ensurePackageSymlink <- function(source, target) {
     if (isPathToSamePackage(source, target))
       return(TRUE)
 
-    # Remove the old symlink. Both junction points and symlinks
-    # are safely removed with a simple, non-recursive unlink.
-    try(unlink(target), silent = TRUE)
+    # Remove the old symlink target (swallowing errors)
+    tryCatch(
+      unlink(target, recursive = !is.symlink(target)),
+      error = identity
+    )
 
-    # Sometimes, on Windows, a failed attempt to call
-    # Sys.junction() can leave an empty folder behind. We
-    # need a recursive deletion to handle this.
-    if (is.windows() &&
-        file.exists(target) &&
-        utils::file_test("-d", target))
-    {
-      children <- list.files(target)
-      if (!length(children))
-        unlink(target, recursive = TRUE)
+    # Check if the file still exists and warn if so
+    if (file.exists(target)) {
+
+      # request information on the existing file
+      info <- paste(capture.output(print(file.info(target))), collapse = "\n")
+      msg <- c(
+        sprintf("Packrat failed to remove a pre-existing file at '%s'.", target),
+        "Please report this issue at 'https://github.com/rstudio/packrat/issues'.",
+        "File info:",
+        info
+      )
+
+      warning(paste(msg, collapse = "\n"))
     }
   }
 
@@ -116,11 +121,11 @@ symlinkExternalPackages <- function(project = NULL) {
 
   project <- getProjectDir(project)
   if (!file.exists(libExtDir(project)))
-    if (!dir.create(libExtDir(project)))
+    if (!dir.create(libExtDir(project), recursive = TRUE))
       stop("Failed to create 'lib-ext' packrat directory")
 
   # Get the default (non-packrat) library paths
-  lib.loc <- getenv(.packrat.env$R_PACKRAT_DEFAULT_LIBPATHS)
+  lib.loc <- getDefaultLibPaths()
   pkgDeps <- recursivePackageDependencies(
     external.packages,
     lib.loc = lib.loc,

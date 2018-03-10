@@ -18,6 +18,9 @@ VALID_OPTIONS <- list(
   ignored.packages = function(x) {
     is.null(x) || is.character(x)
   },
+  ignored.directories = function(x) {
+    is.null(x) || is.character(x)
+  },
   quiet.package.installation = list(TRUE, FALSE),
   snapshot.recommended.packages = list(TRUE, FALSE),
   snapshot.fields = function(x) {
@@ -27,7 +30,7 @@ VALID_OPTIONS <- list(
 
 default_opts <- function() {
   list(
-    auto.snapshot = TRUE,
+    auto.snapshot = FALSE,
     use.cache = FALSE,
     print.banner.on.startup = "auto",
     vcs.ignore.lib = TRUE,
@@ -36,6 +39,7 @@ default_opts <- function() {
     local.repos = NULL,
     load.external.packages.on.startup = TRUE,
     ignored.packages = NULL,
+    ignored.directories = c("data", "inst"),
     quiet.package.installation = TRUE,
     snapshot.recommended.packages = FALSE,
     snapshot.fields = c("Imports", "Depends", "LinkingTo")
@@ -56,21 +60,21 @@ initOptions <- function(project = NULL, options = default_opts()) {
 ##'
 ##' \itemize{
 ##' \item \code{auto.snapshot}: Perform automatic, asynchronous snapshots when running interactively?
-##'   (logical; defaults to \code{TRUE})
+##'   (logical; defaults to \code{FALSE})
 ##' \item \code{use.cache}:
 ##'   Install packages into a global cache, which is then shared across projects? The
 ##'   directory to use is read through \code{Sys.getenv("R_PACKRAT_CACHE_DIR")}.
-##'   Not yet implemented for Windows.
+##'   Windows support is currently experimental.
 ##'   (logical; defaults to \code{FALSE})
 ##' \item \code{print.banner.on.startup}:
 ##'   Print the banner on startup? Can be one of \code{TRUE} (always print),
 ##'   \code{FALSE} (never print), and \code{'auto'} (do the right thing)
 ##'   (defaults to \code{"auto"})
 ##' \item \code{vcs.ignore.lib}:
-##'   Add the packrat private library to your version control system ignore?
+##'   If TRUE, version control configuration is modified to ignore packrat private libraries.
 ##'   (logical; defaults to \code{TRUE})
 ##' \item \code{vcs.ignore.src}:
-##'   Add the packrat private sources to your version control system ignore?
+##'   If TRUE, version control configuration is modified to ignore packrat private sources.
 ##'   (logical; defaults to \code{FALSE})
 ##' \item \code{external.packages}:
 ##'   Packages which should be loaded from the user library. This can be useful for
@@ -90,6 +94,14 @@ initOptions <- function(project = NULL, options = default_opts()) {
 ##'   Prevent packrat from tracking certain packages. Dependencies of these packages
 ##'   will also not be tracked (unless these packages are encountered as dependencies
 ##'   in a separate context from the ignored package).
+##'   (character; empty by default)
+##' \item \code{ignored.directories}:
+##'   Prevent packrat from looking for dependencies inside certain directories of your
+##'   workspace. For example, if you have set your "local.repos" to be inside your local
+##'   workspace so that you can track custom packages as git submodules.
+##'   Each item should be the relative path to a directory in the workspace, e.g. "data",
+##'   "lib/gitsubmodule". Note that packrat already ignores any "invisible" files and
+##'   directories, such as those whose names start with a "." character.
 ##'   (character; empty by default)
 ##' \item \code{quiet.package.installation}:
 ##'   Emit output during package installation?
@@ -219,17 +231,6 @@ validateOptions <- function(opts) {
       if (!opt(value)) {
         stop("'", value, "' is not a valid setting for packrat option '", key, "'", call. = FALSE)
       }
-    }
-  }
-
-  # Disable caching on Windows until we can efficiently and reliably
-  # detect whether a particular directory is a reparse point.
-  if (is.windows() && "use.cache" %in% names(opts)) {
-    use.cache <- opts[["use.cache"]]
-    if (isTRUE(use.cache)) {
-      warning("Caching is not yet enabled on Windows with packrat -- ",
-              "forcing 'use.cache = FALSE'", call. = FALSE)
-      opts[["use.cache"]] <- FALSE
     }
   }
 

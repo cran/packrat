@@ -233,7 +233,29 @@ with_build_tools <- function(code) {
 }
 
 decompress <- function(src, target = tempdir()) {
+  tryCatch(
+    decompressImpl(src, target),
+    error = function(e) {
+      fmt <- paste(
+        "Failed to extract archive:",
+        "- '%s' => '%s'",
+        "Reason: %s",
+        sep = "\n"
+      )
+      msg <- sprintf(fmt, src, target, e$message)
+      message(msg, sep = "\n")
+    }
+  )
+}
+
+decompressImpl <- function(src, target = tempdir()) {
   stopifnot(file.exists(src))
+
+  # force internal tar (otherwise bad things can happen on Windows if
+  # unexpected versions of tar.exe are on the PATH)
+  TAR <- Sys.getenv("TAR")
+  Sys.setenv(TAR = "internal")
+  on.exit(Sys.setenv(TAR = TAR), add = TRUE)
 
   if (grepl("\\.zip$", src)) {
     unzip(src, exdir = target, unzip = getOption("unzip"))
