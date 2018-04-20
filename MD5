@@ -1,4 +1,4 @@
-9f2f49ecc029c51e36aa5a69d63b2375 *DESCRIPTION
+b62e0b0adbeff47ee8b72c4198f8857b *DESCRIPTION
 4ccbab02ff7f87c39cb7c719aa688a62 *NAMESPACE
 dd616c304a953db9df331c0a85a8e7d1 *R/aaa-globals.R
 a23fadcc779613acf3f15d52b947042f *R/augment-rprofile.R
@@ -16,7 +16,7 @@ eaa7717cfb33209298a25622d1b73a17 *R/env.R
 a3c027ea0d79f3759fc7bc6aa52fc7dd *R/external.R
 e0a6ec8f8623be9149fcbc2b61273389 *R/get-package-actions.R
 1ffd684e1a8766dc92f24bede5fb7e00 *R/git-prune.R
-70c9da4cb97fcba6fadd5286dd881c38 *R/github.R
+70f6efd9c77ca144200f9d25e4741139 *R/github.R
 1e3018c58ddc9215225e75210a389576 *R/hide-site-libraries.R
 78a4df19e5ff0c384c133903884ede8b *R/hooks.R
 85300d20a31dd42fa69c8799a9064029 *R/install-local.R
@@ -38,7 +38,7 @@ b6a42ea9d706583a34cd66f2c4fe2364 *R/pretty-print.R
 e095eab068811896ebb349e87be70c69 *R/read-lock-file.R
 3a27b00ca3be26dacca805c77597f74e *R/recursive-package-dependencies.R
 f74676d4ee200926d390fc2f39605ec0 *R/restore-routines.R
-ef32d2b9c6ad14b93fcfda67a6dfee50 *R/restore.R
+6b8e8014c5663950445431fc269a26df *R/restore.R
 46a5754c8267d46f2115b51e95ac9ca2 *R/rstudio-protocol.R
 b4480fe138b665d373e5f6a343067dd1 *R/search-path.R
 2333a3d3f42a17780436d85257392b54 *R/snapshot.R
@@ -48,8 +48,8 @@ b4480fe138b665d373e5f6a343067dd1 *R/search-path.R
 a786b5c3c9357bdedc6917b5960c94d1 *R/utils.R
 dd3bc7a79be9662213ea6ecaa97c0f07 *R/zzz.R
 0c357a3f8d0a0b8540e1464dfb1f9f51 *README.md
-5069167cedc9fb3e4f93d1e7725f02dd *inst/resources/init-rprofile.R
-cfc6e032f8b14a3ac574442461879b22 *inst/resources/init.R
+dd7a3cb85420352ced1c11387c0aa16f *inst/resources/init-rprofile.R
+2789415f68f091227c73e66e9bad2052 *inst/resources/init.R
 c513f80a21bb4c9d9e21392312392240 *inst/resources/mac_r_userlib.sh
 4affbb9d61d533e48a8274cdd712a9f8 *inst/rstudio/rstudio-protocol
 d8319bffdd090c55645e73de37c86b61 *man/appDependencies.Rd
