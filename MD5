@@ -1,4 +1,4 @@
-b62e0b0adbeff47ee8b72c4198f8857b *DESCRIPTION
+9f8e93e37a00f66e2e7cf144822699bd *DESCRIPTION
 4ccbab02ff7f87c39cb7c719aa688a62 *NAMESPACE
 dd616c304a953db9df331c0a85a8e7d1 *R/aaa-globals.R
 a23fadcc779613acf3f15d52b947042f *R/augment-rprofile.R
@@ -7,7 +7,7 @@ ffa6b4d6cf51b5ae1147227f5f1f3a78 *R/available-packages.R
 f6f52137b7c39225623803301d0417fa *R/bundle.R
 60ffd603caf2d2ab706dd9e282ccee87 *R/cache.R
 c0e44e191edb46914c749f353a416c7f *R/clean-search-path.R
-c72d06fff84760f05aad1d4b27ddb144 *R/cranlike-repositories.R
+5db15d019506efb5c968c2ccf9d93d1a *R/cranlike-repositories.R
 8e23c6b8a852b1bf64cc09dc6354c494 *R/dependencies.R
 27762c2116c568fb50b7321eb76536db *R/descfile.R
 f4debcf4d72896d1a92646d3ceb6dac3 *R/disable.R
@@ -48,8 +48,8 @@ b4480fe138b665d373e5f6a343067dd1 *R/search-path.R
 a786b5c3c9357bdedc6917b5960c94d1 *R/utils.R
 dd3bc7a79be9662213ea6ecaa97c0f07 *R/zzz.R
 0c357a3f8d0a0b8540e1464dfb1f9f51 *README.md
-dd7a3cb85420352ced1c11387c0aa16f *inst/resources/init-rprofile.R
-2789415f68f091227c73e66e9bad2052 *inst/resources/init.R
+651a3383e207d9328af18bbb3b01622d *inst/resources/init-rprofile.R
+2882646de629e7ddf5bb86af6587b9e5 *inst/resources/init.R
 c513f80a21bb4c9d9e21392312392240 *inst/resources/mac_r_userlib.sh
 4affbb9d61d533e48a8274cdd712a9f8 *inst/rstudio/rstudio-protocol
 d8319bffdd090c55645e73de37c86b61 *man/appDependencies.Rd
@@ -126,7 +126,7 @@ ba191963f68f11d6f8a30bf25820e136 *tests/testthat/resources/knitr-minimal.Rnw
 25278d6507e8d0ae24ae4d264a10a0a0 *tests/testthat/test-aaa.R
 174c55c8d93a8fcbddab2dc7a08d5dcc *tests/testthat/test-bundle.R
 39b9edf91cdd08989b9f7f6ea74c5103 *tests/testthat/test-cache.R
-40adf795f3c4806725bae4c33cc0e186 *tests/testthat/test-dependencies.R
+fea4b392dea4393afc7c87384486d978 *tests/testthat/test-dependencies.R
 949875a4fa8a2acec7039fca7626a7b1 *tests/testthat/test-downloader.R
 da1c39a812422fdcf6413e921ce21cd0 *tests/testthat/test-git.R
 0b5b7e402c59de34614ae351c9aa77fd *tests/testthat/test-github.R
