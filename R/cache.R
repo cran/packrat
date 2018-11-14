@@ -34,11 +34,31 @@ hash <- function(path, descLookup = installedDescLookup) {
   }
   pkgName <- DESCRIPTION[["Package"]]
 
+  # Remote SHA backwards compatible with cache v2: use 'GithubSHA1' if exists, otherwise all 'Remote' fields
+  remote_fields <- if ("GithubSHA1" %in% names(DESCRIPTION)) {
+    "GithubSHA1"
+  } else if (is.null(DESCRIPTION[["RemoteType"]]) || DESCRIPTION[["RemoteType"]] == "cran") {
+    # Packages installed with install.packages or locally without remotes
+    c()
+  } else {
+    # Mirror the order used by devtools when augmenting the DESCRIPTION.
+    c("RemoteType", "RemoteHost", "RemoteRepo", "RemoteUsername", "RemoteRef", "RemoteSha", "RemoteSubdir")
+  }
+
+  # Mirror the order of DESCRIPTION fields produced by `package.skeleton` and
+  # `devtools::create_description`.
+  fields <- c("Package", "Version", "Depends", "Imports", "Suggests", "LinkingTo", remote_fields)
+
   # TODO: Do we want the 'Built' field used for hashing? The main problem with using that is
   # it essentially makes packages installed from source un-recoverable, since they will get
   # built transiently and installed (and so that field could never be replicated).
-  fields <- c("Package", "Version", "GithubSHA1", "Depends", "Imports", "Suggests", "LinkingTo")
-  sub <- DESCRIPTION[names(DESCRIPTION) %in% fields]
+
+  # Create a "sub" data frame with a consistently ordered set of columns.
+  #
+  # This ensures that package hashing is not sensitive to DESCRIPTION field
+  # order.
+  common <- intersect(fields, names(DESCRIPTION))
+  sub <- DESCRIPTION[common]
 
   # Handle LinkingTo specially -- we need to discover what version of packages in LinkingTo
   # were actually linked against in order to properly disambiguate e.g. httpuv 1.0 linked

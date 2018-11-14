@@ -144,11 +144,13 @@ dirDependencies <- function(dir) {
     R_files <- grep(ignoredDirRegex, R_files, invert = TRUE, value = TRUE)
   }
 
-  sapply(R_files, function(file) {
-    filePath <- file.path(dir, file)
-    pkgs <<- append(pkgs, fileDependencies(file.path(dir, file)))
+  if (!identical(getOption("packrat.dependency.discovery.disabled"), TRUE)) {
+    sapply(R_files, function(file) {
+      filePath <- file.path(dir, file)
+      pkgs <<- append(pkgs, fileDependencies(file.path(dir, file)))
 
-  })
+    })
+  }
 
   ## Exclude recommended packages if there is no package installed locally
   ## this places an implicit dependency on the system-installed version of a package
@@ -266,8 +268,8 @@ fileDependencies.Rmd <- function(file) {
     deps <- c(deps, yamlDeps)
 
     # Extract additional dependencies from YAML parameters.
-    if (packageVersion("knitr") >= "1.10.18" &&
-        requireNamespace("knitr", quietly = TRUE))
+    if (requireNamespace("knitr", quietly = TRUE) &&
+        packageVersion("knitr") >= "1.10.18")
     {
       # attempt to extract knitr params from yaml
       knitParams <- tryCatch(
@@ -309,16 +311,24 @@ fileDependencies.Rmd <- function(file) {
   }, add = TRUE)
 
   if (requireNamespace("knitr", quietly = TRUE)) {
+
     tempfile <- tempfile()
     on.exit(unlink(tempfile))
+
     tryCatch(silent(
       knitr::knit(file, output = tempfile, tangle = TRUE, encoding = encoding)
     ), error = function(e) {
       message("Unable to tangle file '", file, "'; cannot parse dependencies")
       character()
     })
-    stripAltEngines(tempfile, encoding)
-    c(deps, fileDependencies.R(tempfile))
+
+    if (file.exists(tempfile)) {
+      stripAltEngines(tempfile, encoding)
+      c(deps, fileDependencies.R(tempfile))
+    } else {
+      deps
+    }
+
   } else {
     warning("knitr is required to parse dependencies but is not available")
     deps

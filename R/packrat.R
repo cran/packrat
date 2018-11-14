@@ -220,15 +220,18 @@ initImpl <- function(project = getwd(),
   augmentRprofile(project)
   options <- initOptions(project, opts) ## writes out packrat.opts and returns generated list
 
-  # Take a snapshot
-  snapshotImpl(project,
-               lib.loc = NULL,
-               ignore.stale = TRUE,
-               fallback.ok = TRUE,
-               infer.dependencies = infer.dependencies)
+  # If we don't yet have a lockfile, take a snapshot and then build the Packrat library.
+  if (!file.exists(lockFilePath(project = project))) {
 
-  # Use the lockfile to copy sources and install packages to the library
-  restore(project, overwrite.dirty = TRUE, restart = FALSE)
+    snapshotImpl(project,
+                 lib.loc = NULL,
+                 ignore.stale = TRUE,
+                 fallback.ok = TRUE,
+                 infer.dependencies = infer.dependencies)
+
+    restore(project, overwrite.dirty = TRUE, restart = FALSE)
+
+  }
 
   # Copy init.R so a user can 'start from zero' with a project
   file.copy(
@@ -328,7 +331,7 @@ restore <- function(project = NULL,
                     restart = !dry.run) {
 
   project <- getProjectDir(project)
-  stopIfNotPackified(project)
+  stopIfNoLockfile(project)
 
   if (!dry.run) {
     callHook(project, "restore", TRUE)
@@ -402,7 +405,7 @@ restore <- function(project = NULL,
     options(repos = externalRepos)
   }, add = TRUE)
 
-  # Install each package from CRAN or github, from binaries when available and
+  # Install each package from CRAN or github/bitbucket, from binaries when available and
   # then from sources.
   restoreImpl(project, repos, packages, libDir,
               pkgsToIgnore = pkgsToIgnore, prompt = prompt,
@@ -445,7 +448,6 @@ clean <- function(packages = NULL,
                   force = FALSE) {
 
   project <- getProjectDir(project)
-  stopIfNotPackified(project)
 
   callHook(project, "clean", TRUE)
   on.exit(callHook(project, "clean", FALSE), add = TRUE)

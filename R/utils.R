@@ -205,6 +205,16 @@ endswith <- function(str1, str2) {
   })
 }
 
+stopIfNoLockfile <- function(project) {
+  path <- lockFilePath(project)
+  if (!file.exists(path)) {
+    stop("This project does not have a lockfile. (Have you called 'packrat::snapshot()' yet?)",
+         call. = FALSE)
+  }
+
+  invisible(TRUE)
+}
+
 stopIfNotPackified <- function(project) {
 
   if (!checkPackified(project, quiet = TRUE)) {
@@ -497,8 +507,15 @@ write_dcf <- function(x, file = "", append = FALSE, indent = 4,
 }
 
 symlink <- function(from, to) {
-  if (is.windows()) Sys.junction(from, to)
-  else file.symlink(from, to)
+
+  # attempt to generating the symlink
+  if (is.windows())
+    Sys.junction(from, to)
+  else
+    file.symlink(from, to)
+
+  # check to see if the file was properly generated
+  file.exists(to)
 }
 
 with_dir <- function(dir, expr) {

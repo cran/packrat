@@ -69,10 +69,6 @@ snapshot <- function(project = NULL,
   }
 
   project <- getProjectDir(project)
-
-  # Prompt the user to initialize if the project has not yet been initialized
-  stopIfNotPackified(project)
-
   if (file.exists(snapshotLockFilePath(project))) {
     stop("An automatic snapshot is currently in progress -- cannot proceed")
   }
@@ -193,7 +189,7 @@ snapshot <- function(project = NULL,
 
   # For inferred packages (ie. packages within the code), we try to construct
   # records first from the lockfile, and then from other sources if possible
-  # (CRAN, GitHub, source repository)
+  # (CRAN, GitHub, Bitbucket, source repository)
   inferredPkgRecords <- getPackageRecords(inferredPkgsNotInLib,
                                           project = project,
                                           available = available,
@@ -343,7 +339,21 @@ snapshot <- function(project = NULL,
 snapshotImpl <- .snapshotImpl
 
 getBiocRepos <- function() {
-  BiocInstaller::biocinstallRepos()
+
+  BiocManager <- tryCatch(asNamespace("BiocManager"), error = identity)
+  if (!inherits(BiocManager, "error"))
+    return(BiocManager$repositories())
+
+  BiocInstaller <- tryCatch(asNamespace("BiocInstaller"), error = identity)
+  if (!inherits(BiocInstaller, "error"))
+    return(BiocInstaller$biocinstallRepos())
+
+  msg <- paste(
+    "Neither BiocManager nor BiocInstaller are installed;",
+    "cannot discover Bioconductor repositories"
+  )
+  warning(msg)
+  character()
 }
 
 # Returns a vector of all active repos, including CRAN (with a fallback to the
@@ -351,16 +361,14 @@ getBiocRepos <- function() {
 activeRepos <- function(project) {
   project <- getProjectDir(project)
   repos <- getOption("repos")
-  repos[repos == "@CRAN@"] <- "http://cran.rstudio.com/"
+  repos[repos == "@CRAN@"] <- "https://cran.rstudio.com/"
 
-  # Check to see whether Bioconductor is installed. Bioconductor maintains a
-  # private set of repos, which we need to expose here so we can download
-  # sources to Bioconducter packages.
-  location <- find.package(
-    "BiocInstaller",
-    lib.loc = libDir(project),
-    quiet = TRUE
-  )
+  # Check for installation of BiocManager or BiocInstaller in the private
+  # library. If either exists, then conclude this is a Bioconductor Packrat
+  # project and add the Bioconductor repositories to the lockfile.
+  location <- find.package("BiocManager", lib.loc = libDir(project), quiet = TRUE)
+  if (!length(location))
+    location <- find.package("BiocInstaller", lib.loc = libDir(project), quiet = TRUE)
 
   if (length(location) == 1 && file.exists(location)) {
     biocRepos <- getBiocRepos()
