@@ -66,7 +66,7 @@ install <- function(pkg = ".", reload = TRUE, quick = FALSE, local = TRUE,
   }
   opts <- paste(paste(opts, collapse = " "), paste(args, collapse = " "))
 
-  R(paste("CMD INSTALL ", shQuote(built_path), " ", opts, sep = ""),
+  R(paste("CMD INSTALL --preclean ", shQuote(built_path), " ", opts, sep = ""),
     quiet = quiet)
 
   if (reload) reload(pkg$package, quiet = quiet)
@@ -89,7 +89,7 @@ build <- function(pkg = ".", path = NULL, binary = FALSE, vignettes = TRUE,
 
   if (binary) {
     args <- c("--build", args)
-    cmd <- paste0("CMD INSTALL ", shQuote(pkg$path), " ",
+    cmd <- paste0("CMD INSTALL --preclean ", shQuote(pkg$path), " ",
                   paste0(args, collapse = " "))
     ext <- if (.Platform$OS.type == "windows") "zip" else "tgz"
   } else {
@@ -130,7 +130,7 @@ R <- function(options, path = tempdir(), env_vars = NULL, ...) {
 }
 
 r_env_vars <- function() {
-  c("LC_ALL" = "C",
+  c(
     "R_LIBS" = paste(getLibPaths(), collapse = .Platform$path.sep),
     "CYGWIN" = "nodosfilewarning",
     # When R CMD check runs tests, it sets R_TESTS. When the tests
@@ -139,7 +139,8 @@ r_env_vars <- function() {
     # the R subprocesses. Unsetting it here avoids those problems.
     "R_TESTS" = "",
     "NOT_CRAN" = "true",
-    "TAR" = auto_tar())
+    "TAR" = auto_tar()
+  )
 }
 
 auto_tar <- function() {
@@ -187,8 +188,10 @@ install_local_path_single <- function(path, subdir = NULL, before_install = NULL
 
   if (!file.info(path)$isdir) {
     bundle <- path
-    path <- decompress(path)
-    on.exit(unlink(path), add = TRUE)
+    target <- tempfile("packrat-install-")
+    dir.create(target)
+    path <- decompress(path, target)
+    on.exit(unlink(target, recursive = TRUE), add = TRUE)
   } else {
     bundle <- NULL
   }
@@ -234,7 +237,7 @@ with_build_tools <- function(code) {
 
 decompress <- function(src, target = tempdir()) {
   tryCatch(
-    decompressImpl(src, target),
+    suppressWarnings(decompressImpl(src, target)),
     error = function(e) {
       fmt <- paste(
         "Failed to extract archive:",

@@ -61,6 +61,16 @@ rebuildTestRepo <- function(testroot = getwd()) {
     file.rename(file.path(source, tarball), file.path(target, pkg, tarball))
   }
 
+  # Force usage of version 2 of .rds files.
+  version <- Sys.getenv("R_DEFAULT_SERIALIZE_VERSION", unset = NA)
+  Sys.setenv(R_DEFAULT_SERIALIZE_VERSION = "2")
+  on.exit({
+    if (is.na(version))
+      Sys.unsetenv("R_DEFAULT_SERIALIZE_VERSION")
+    else
+      Sys.setenv(R_DEFAULT_SERIALIZE_VERSION = version)
+  }, add = TRUE)
+
   tools::write_PACKAGES(target, subdirs = TRUE)
 }
 
@@ -130,6 +140,10 @@ makeLibrariesProject <- function() {
 
 # Sets up repositories etc. for a test context, and restores them when done.
 beginTestContext <- function() {
+
+  # lazy
+  if (interactive() && file.exists("tests/testthat"))
+    setwd("tests/testthat")
 
   fields <- c("repos", "pkgType", "warn")
   options <- setNames(lapply(fields, getOption), fields)

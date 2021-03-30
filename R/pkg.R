@@ -105,7 +105,7 @@ getPackageRecordsExternalSource <- function(pkgNames,
       # If the package is currently installed, then we can return a package
       # record constructed from the DESCRIPTION file.
       df <- as.data.frame(readDcf(pkgDescFile))
-      result <- suppressWarnings(inferPackageRecord(df))
+      result <- suppressWarnings(inferPackageRecord(df, available))
 
       # Normalize NULL source vs. 'unknown' source.
       if (is.null(result$source))
@@ -123,7 +123,7 @@ getPackageRecordsExternalSource <- function(pkgNames,
         result$source <- "CRAN"
       }
 
-    } else if (fallback.ok && pkgName %in% rownames(available)) {
+    } else if (fallback.ok && pkgName %in% available[, "Package"]) {
 
       # The package is not currently installed, but is available on CRAN.
       # Snapshot the latest available version for this package from CRAN.
@@ -139,7 +139,7 @@ getPackageRecordsExternalSource <- function(pkgNames,
         Version = pkg[["Version"]],
         Repository = "CRAN"
       )
-      result <- suppressWarnings(inferPackageRecord(df))
+      result <- suppressWarnings(inferPackageRecord(df, available))
 
     } else {
       # We were unable to determine an appropriate package record
@@ -184,13 +184,30 @@ getPackageRecords <- function(pkgNames,
                               lib.loc = NULL,
                               missing.package = error_not_installed,
                               check.lockfile = FALSE,
-                              fallback.ok = FALSE)
+                              fallback.ok = FALSE,
+                              verbose = FALSE,
+                              .recursion.level = 1,
+                              .visited.packages = new.env(parent = emptyenv()))
 {
+  logger <- verboseLogger(verbose)
   project <- getProjectDir(project)
   local.repos <- get_opts("local.repos", project = project)
 
   # screen out empty package names that might have snuck in
   pkgNames <- setdiff(pkgNames, "")
+
+  # Prior recursive steps may have already computed this package record and
+  # its recursive dependencies. Avoid constructing this package record.
+  priorPkgRecords <- dropNull(lapply(pkgNames, function(pkgName) {
+    if (exists(pkgName, envir = .visited.packages)) {
+      get(pkgName, envir = .visited.packages)
+    } else {
+      NULL
+    }
+  }))
+  if (length(priorPkgRecords)) {
+    pkgNames <- setdiff(pkgNames, sapply(priorPkgRecords, "[[", "name"))
+  }
 
   if (check.lockfile) {
     lockfilePkgRecords <- getPackageRecordsLockfile(pkgNames, project = project)
@@ -247,6 +264,7 @@ getPackageRecords <- function(pkgNames,
 
   # Collect the records together
   allRecords <- c(
+    priorPkgRecords,
     lockfilePkgRecords,
     srcPkgRecords,
     manualSrcPkgRecords,
@@ -259,38 +277,59 @@ getPackageRecords <- function(pkgNames,
 
   # Now get recursive package dependencies if necessary
   if (recursive) {
+    .nnn <- length(allRecords)
+    .iii <- 0
     allRecords <- lapply(allRecords, function(record) {
-      deps <- getPackageDependencies(pkgs = record$name,
-                                     lib.loc = lib.loc,
-                                     available.packages = available)
-      if (!is.null(deps)) {
-        record$depends <- getPackageRecords(
-          deps,
-          project = project,
-          available,
-          TRUE,
-          lib.loc = lib.loc,
-          missing.package = missing.package,
-          check.lockfile = check.lockfile,
-          fallback.ok = fallback.ok
-        )
+      .iii <<- .iii + 1
+      if (exists(record$name, envir = .visited.packages)) {
+        # We have already processed this package and computed its recursive
+        # dependencies. Avoid recursively computing its dependencies.
+        logger(sprintf("- (%3i / %3i; depth=%i) %s - using cached dependencies", .iii, .nnn, .recursion.level, record$name))
+        get(record$name, envir = .visited.packages)
+      } else {
+        # We have not already processed this package.
+        logger(sprintf("- (%3i / %3i; depth=%i) %s - calculating dependencies", .iii, .nnn, .recursion.level, record$name))
+        deps <- getPackageDependencies(pkgs = record$name,
+                                       lib.loc = lib.loc,
+                                       available.packages = available)
+        if (!is.null(deps)) {
+          record$depends <- getPackageRecords(
+            deps,
+            project = project,
+            available,
+            TRUE,
+            lib.loc = lib.loc,
+            missing.package = missing.package,
+            check.lockfile = check.lockfile,
+            fallback.ok = fallback.ok,
+            verbose = verbose,
+            .recursion.level = .recursion.level + 1,
+            .visited.packages = .visited.packages
+          )
+        }
+        .visited.packages[[record$name]] <- record
+        record
       }
-
-      record
     })
   }
 
   allRecords
 }
 
+# Return TRUE when the data frame for this package has the given RemoteType.
+hasRemoteType <- function(df, remoteType) {
+  # Do not compare with 'identical'; RemoteType may be a factor.
+  return (!is.null(df$RemoteType) && df$RemoteType == remoteType)
+}
+
 # Reads a description file and attempts to infer where the package came from.
-# Currently works only for packages installed from CRAN or from GitHub/Bitbucket using
+# Currently works only for packages installed from CRAN or from GitHub/Bitbucket/Gitlab using
 # devtools 1.4 or later.
-inferPackageRecord <- function(df) {
+inferPackageRecord <- function(df, available = availablePackages()) {
   name <- as.character(df$Package)
   ver <- as.character(df$Version)
 
-  if (!is.null(df$GithubRepo)) {
+  if (length(df$GithubRepo) || hasRemoteType(df, "github")) {
     # It's GitHub!
     return(structure(c(list(
       name = name,
@@ -307,7 +346,7 @@ inferPackageRecord <- function(df) {
       c(remote_ref = as.character(df$RemoteRef)),
       c(remote_sha = as.character(df$RemoteSha))
     ), class = c('packageRecord', 'github')))
-  } else if (!is.null(df$RemoteType) && df$RemoteType == "bitbucket") {
+  } else if (hasRemoteType(df, "bitbucket")) {
     # It's Bitbucket!
     return(structure(c(list(
       name = name,
@@ -320,30 +359,49 @@ inferPackageRecord <- function(df) {
       c(remote_host = as.character(df$RemoteHost)),
       c(remote_subdir = as.character(df$RemoteSubdir))
     ), class = c('packageRecord', 'bitbucket')))
+  } else if (hasRemoteType(df, "gitlab")) {
+    # It's GitLab!
+    return(structure(c(list(
+      name = name,
+      source = 'gitlab',
+      version = ver,
+      remote_repo = as.character(df$RemoteRepo),
+      remote_username = as.character(df$RemoteUsername),
+      remote_ref = as.character(df$RemoteRef),
+      remote_sha = as.character(df$RemoteSha)),
+      c(remote_host = as.character(df$RemoteHost))
+    ), class = c('packageRecord', 'gitlab')))
   } else if (identical(as.character(df$Priority), 'base')) {
     # It's a base package!
     return(NULL)
-  } else if (!is.null(df$biocViews)) {
-    # It's Bioconductor!
-    return(structure(list(
-      name = name,
-      source = 'Bioconductor',
-      version = ver
-    ), class = c('packageRecord', 'Bioconductor')))
-  } else if (!is.null(df$Repository) && identical(as.character(df$Repository), 'CRAN')) {
+  } else if (length(df$Repository) && identical(as.character(df$Repository), 'CRAN')) {
     # It's CRAN!
     return(structure(list(
       name = name,
       source = 'CRAN',
       version = ver
     ), class = c('packageRecord', 'CRAN')))
-  } else if (!is.null(df$Repository)) {
+  } else if (length(df$Repository)) {
     # It's a package from a custom CRAN-like repo!
     return(structure(list(
       name = name,
       source = as.character(df$Repository),
       version = ver
-    ), class = c("packageRecord", "CustomCRANLikeRepository")))
+    ), class = c('packageRecord', 'CustomCRANLikeRepository')))
+  } else if (length(df$biocViews)) {
+    # It's Bioconductor!
+    return(structure(list(
+      name = name,
+      source = 'Bioconductor',
+      version = ver
+    ), class = c('packageRecord', 'Bioconductor')))
+  } else if (name %in% available[, "Package"]) {
+    # It's available on CRAN, so get it from CRAN!
+    return(structure(list(
+      name = name,
+      source = 'CustomCRANLikeRepository',
+      version = ver
+    ), class = c('packageRecord', 'CustomCRANLikeRepository')))
   } else if (identical(as.character(df$InstallSource), "source")) {
     # It's a local source package!
     return(structure(list(
@@ -431,20 +489,6 @@ pick <- function(property, package, defaultValue = NA) {
   }
 }
 
-# If called without a second argument, returns a curried function. If called
-# with a second argument then it returns the package without the indicated
-# properties.
-strip <- function(properties, package) {
-  func <- function(packageRecord) {
-    packageRecord[!names(packageRecord) %in% properties]
-  }
-  if (!missing(package)) {
-    return(func(package))
-  } else {
-    return(func)
-  }
-}
-
 # Returns a character vector of package names. Depends are ignored.
 pkgNames <- function(packageRecords) {
   if (length(packageRecords) == 0)
@@ -516,7 +560,26 @@ flattenPackageRecords <- function(packageRecords, depInfo = FALSE, sourcePath = 
   })
 }
 
-# States: NA (unchanged), remove, add, upgrade, downgrade, crossgrade
+diffableRecord <- function(record) {
+  ignoredFields <- c('depends', 'source_path', 'hash')
+  recordNames <- names(record)
+  recordNames <- setdiff(recordNames, ignoredFields)
+
+  # Remote SHA backwards compatible with cache v2: use 'GithubSHA1' if exists, otherwise all 'Remote' fields
+  if ("gh_sha1" %in% recordNames) {
+    # Remove all the Remote* fields when using GitHub.
+    recordNames <- recordNames[grep("^remote_", recordNames, invert = TRUE)]
+  }
+  record[recordNames]
+}
+
+# debug helper to print a package record. includes field names, type of value, and value.
+printPackageRecord <- function(name, record) {
+  cat(name, "\n")
+  cat(paste(names(record), lapply(record,typeof), record, sep = ":", collapse = "\n"),"\n")
+}
+
+# states: NA (unchanged), remove, add, upgrade, downgrade, crossgrade
 # (crossgrade means name and version was the same but something else was
 # different, i.e. different source or GitHub SHA1 hash or something)
 
@@ -535,9 +598,20 @@ diff <- function(packageRecordsA, packageRecordsB) {
       pkgA <- searchPackages(packageRecordsA, pkgName)[[1]]
       pkgB <- searchPackages(packageRecordsB, pkgName)[[1]]
 
-      if (identical(strip(c('depends', 'source_path', 'hash'), pkgA),
-                    strip(c('depends', 'source_path', 'hash'), pkgB)))
+      strippedA <- diffableRecord(pkgA)
+      strippedB <- diffableRecord(pkgB)
+
+      ## Helpful when debugging unexpected differences between two package records.
+      ##
+      ## printPackageRecord("pkgA", pkgA)
+      ## printPackageRecord("pkgB", pkgB)
+      ## printPackageRecord("strippedA", strippedA)
+      ## printPackageRecord("strippedB", strippedB)
+
+      if (identical(strippedA, strippedB)) {
         return(NA)
+      }
+
       verComp <- compareVersion(pkgA$version, pkgB$version)
       if (verComp < 0)
         return('upgrade')

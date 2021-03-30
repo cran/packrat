@@ -73,6 +73,7 @@ withTestContext({
 
   test_that("snapshot captures new dependencies", {
     skip_on_cran()
+    skip_on_travis()
     projRoot <- cloneTestProject("healthy")
     lib <- libDir(projRoot)
     init(enter = FALSE, projRoot, options = list(local.repos = "packages"))
@@ -95,30 +96,30 @@ withTestContext({
     expect_true("toast" %in% pkgs)
   })
 
-  test_that("snapshot captures new installed dependecies but not
-            inferred dependencies when infer.dependencies is FALSE", {
-              skip_on_cran()
-              projRoot <- cloneTestProject("healthy")
-              lib <- libDir(projRoot)
-              init(enter = FALSE, projRoot, options = list(local.repos = "packages"))
+  test_that("snapshot captures only installed dependecies butwhen infer.dependencies is FALSE", {
+    skip_on_cran()
+    skip_on_travis()
+    projRoot <- cloneTestProject("healthy")
+    lib <- libDir(projRoot)
+    init(enter = FALSE, projRoot, options = list(local.repos = "packages"))
 
-              # Simulate the addition of a dependency
-              expect_false(file.exists(file.path(lib, "bread")))
-              expect_false(file.exists(file.path(lib, "toast")))
-              installTestPkg("bread", "1.0.0", lib)
-              addTestDependency(projRoot, "toast")  # toast depends on bread
-              expect_true(file.exists(file.path(lib, "bread")))
+    # Simulate the addition of a dependency
+    expect_false(file.exists(file.path(lib, "bread")))
+    expect_false(file.exists(file.path(lib, "toast")))
+    installTestPkg("bread", "1.0.0", lib)
+    addTestDependency(projRoot, "toast")  # toast depends on bread
+    expect_true(file.exists(file.path(lib, "bread")))
 
-              # Snapshot the new state and make sure we picked up both toast and its
-              # dependency, bread
-              pkgs <- pkgNames(lockInfo(projRoot))
-              expect_false("bread" %in% pkgs)
-              expect_false("toast" %in% pkgs)
-              snapshot(projRoot, infer.dependencies = FALSE)
-              pkgs <- pkgNames(lockInfo(projRoot))
-              expect_true("bread" %in% pkgs)
-              expect_false("toast" %in% pkgs)
-})
+    # Snapshot the new state and make sure we picked up both toast and its
+    # dependency, bread
+    pkgs <- pkgNames(lockInfo(projRoot))
+    expect_false("bread" %in% pkgs)
+    expect_false("toast" %in% pkgs)
+    snapshot(projRoot, infer.dependencies = FALSE)
+    pkgs <- pkgNames(lockInfo(projRoot))
+    expect_true("bread" %in% pkgs)
+    expect_false("toast" %in% pkgs)
+  })
 
   test_that("dependencies in library directories are ignored", {
     skip_on_cran()
@@ -167,21 +168,27 @@ withTestContext({
     expect_true(file.exists(file.path(lib, "bread")))
     expect_false(file.exists(file.path(lib, "oatmeal")))
     expect_true(file.exists(file.path(src, "bread")))
-    expect_false(file.exists(file.path(src, "oatmeal")))
   })
 
   test_that("init works with multiple repos", {
     skip_on_cran()
-    repos <- getOption("repos")
-    pkgType <- getOption("pkgType")
-    on.exit({
-      options("repos" = repos)
-      options("pkgType" = pkgType)
-    }, add = TRUE)
-    options(repos = c(CRAN = getOption("repos"), custom = getOption("repos")))
+
+    repos <- getOption("repos")[1]
+    op <- options(
+      repos   = c(CRAN = repos, CUSTOM = repos),
+      pkgType = "source"
+    )
+
+    on.exit(options(op), add = TRUE)
 
     projRoot <- cloneTestProject("empty")
-    init(enter = FALSE, projRoot, options = list(local.repos = "packages"))
+
+    init(
+      project = projRoot,
+      options = list(local.repos = "packages"),
+      enter = FALSE
+    )
+
   })
 
   test_that("fileDependencies.R picks up '::', ':::' dependencies", {
@@ -268,5 +275,58 @@ withTestContext({
     projRoot <- cloneTestProject("emptydesc")
     .snapshotImpl(projRoot, implicit.packrat.dependency = FALSE,
                   snapshot.sources = FALSE)
+  })
+
+  test_that("Packages restored from GitLab have RemoteType+RemoteHost in their DESCRIPTION", {
+    skip_on_cran()
+    projRoot <- cloneTestProject("falsy-gitlab")
+
+    # ignore R version warnings
+    suppressWarnings(restore(projRoot))
+
+    # validate the installed package has properly annotated DESCRIPTION
+    descpath <- file.path(libDir(projRoot), "falsy/DESCRIPTION")
+    desc <- as.data.frame(readDcf(descpath))
+    expect_true(desc$RemoteType == "gitlab")
+    expect_true(desc$RemoteHost == "gitlab.com")
+
+    # confirm that packrat interprets this package as coming from gitlab.
+    record <- inferPackageRecord(desc)
+    expect_true(record$source == "gitlab")
+  })
+
+  test_that("Packages restored from BitBucket have RemoteType+RemoteHost in their DESCRIPTION", {
+    skip_on_cran()
+    projRoot <- cloneTestProject("falsy-bitbucket")
+
+    # ignore R version warnings
+    suppressWarnings(restore(projRoot))
+
+    # validate the installed package has properly annotated DESCRIPTION
+    descpath <- file.path(libDir(projRoot), "falsy/DESCRIPTION")
+    desc <- as.data.frame(readDcf(descpath))
+    expect_true(desc$RemoteType == "bitbucket")
+    expect_true(desc$RemoteHost == "api.bitbucket.org/2.0")
+
+    # confirm that packrat interprets this package as coming from bitbucket.
+    record <- inferPackageRecord(desc)
+    expect_true(record$source == "bitbucket")
+
+    # confirm remote subdir is not in the record (unused by this lockfile)
+    expect_false("remote_subdir" %in% names(record))
+  })
+
+  test_that("packrat and remotes annotated descriptions are comparable", {
+    remotesDesc <- as.data.frame(readDcf("resources/descriptions/falsy.remotes"))
+    remotesRecord <- inferPackageRecord(remotesDesc)
+    packratDesc <- as.data.frame(readDcf("resources/descriptions/falsy.packrat"))
+    packratRecord <- inferPackageRecord(packratDesc)
+    diffed <- diff(list("falsy" = remotesRecord),
+                   list("falsy" = packratRecord))
+    expected <- c(
+      structure(rep.int('remove', 0), names = c()),
+      structure(rep.int('add', 0), names = c()),
+      structure(c(NA), names = c("falsy")))
+    expect_identical(diffed, expected)
   })
 })

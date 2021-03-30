@@ -254,7 +254,7 @@ initImpl <- function(project = getwd(),
 
     # Restart R if the environment is capable of it (otherwise enter packrat mode)
     if (!restart || !attemptRestart())
-      on(project = project, clean.search.path = TRUE)
+      on(project = project, clean.search.path = FALSE)
   }
 
   invisible()
@@ -405,7 +405,7 @@ restore <- function(project = NULL,
     options(repos = externalRepos)
   }, add = TRUE)
 
-  # Install each package from CRAN or github/bitbucket, from binaries when available and
+  # Install each package from CRAN or github/bitbucket/gitlab, from binaries when available and
   # then from sources.
   restoreImpl(project, repos, packages, libDir,
               pkgsToIgnore = pkgsToIgnore, prompt = prompt,
@@ -522,8 +522,8 @@ unused_packages <- function(project = NULL,
   orphans <- setdiff(installedPkgNames,
                      packagesInUse)
 
-  ## Exclude 'manipulate', 'rstudio'
-  orphans <- setdiff(orphans, c("manipulate", "rstudio"))
+  ## Exclude 'manipulate', 'rstudio', and ignored packages
+  orphans <- setdiff(orphans, c("manipulate", "rstudio", opts$ignored.packages()))
   orphanRecs <- getPackageRecords(orphans,
                                   project = project,
                                   available = NULL,

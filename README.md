@@ -1,5 +1,20 @@
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/rstudio/packrat/workflows/R-CMD-check/badge.svg)](https://github.com/rstudio/packrat/actions)
 [![Build Status](https://travis-ci.org/rstudio/packrat.svg?branch=master)](https://travis-ci.org/rstudio/packrat)
 [![Coverage Status](https://codecov.io/github/rstudio/packrat/coverage.svg?branch=master)](https://codecov.io/github/rstudio/packrat?branch=master)
+<!-- badges: end -->
+
+## NOTE
+
+Packrat has been soft-deprecated and is now superseded by
+[renv](https://github.com/rstudio/renv).
+
+While we will continue maintaining Packrat, all new development will focus on
+`renv`. If you're interested in switching to `renv`, you can use
+`renv::migrate()` to migrate a project from Packrat to `renv`.
+
+---
 
 # packrat
 
@@ -18,8 +33,9 @@ Use packrat to make your R projects more:
   go.
 
 See the [project page](https://rstudio.github.io/packrat/) for more information,
-or join the discussion at
-[packrat-discuss](https://groups.google.com/forum/#!forum/packrat-discuss).
+or join the discussion on the
+[RStudio Community forums](https://community.rstudio.com).
+
 Read the [release
 notes](https://github.com/rstudio/packrat/blob/master/NEWS.md) to learn what's
 new in Packrat.

@@ -311,28 +311,15 @@ fileDependencies.Rmd <- function(file) {
   }, add = TRUE)
 
   if (requireNamespace("knitr", quietly = TRUE)) {
-
-    tempfile <- tempfile()
-    on.exit(unlink(tempfile))
-
-    tryCatch(silent(
-      knitr::knit(file, output = tempfile, tangle = TRUE, encoding = encoding)
-    ), error = function(e) {
-      message("Unable to tangle file '", file, "'; cannot parse dependencies")
-      character()
-    })
-
-    if (file.exists(tempfile)) {
-      stripAltEngines(tempfile, encoding)
-      c(deps, fileDependencies.R(tempfile))
-    } else {
-      deps
-    }
-
+    deps <- c(
+      deps,
+      fileDependencies.Rmd.tangle(file, encoding = encoding)
+    )
   } else {
     warning("knitr is required to parse dependencies but is not available")
-    deps
   }
+
+  unique(deps)
 }
 
 fileDependencies.knitr <- function(...) {
@@ -437,8 +424,13 @@ identifyPackagesUsed <- function(call, env) {
     return()
   }
 
-  # Check for packge loaders
-  pkgLoaders <- c("library", "require", "loadNamespace", "requireNamespace")
+  # Check for package loaders.
+  #
+  # The library() and require() calls accept symbols directly as package
+  # names, while loadNamespace() and requireNamespace() do not.
+  liberalLoaders <- c("library", "require")
+  strictLoaders <- c("loadNamespace", "requireNamespace")
+  pkgLoaders <- c(strictLoaders, liberalLoaders)
   if (!fnString %in% pkgLoaders)
     return()
 
@@ -455,25 +447,27 @@ identifyPackagesUsed <- function(call, env) {
   if (!"package" %in% names(matched))
     return()
 
-  # Protect against 'character.only = TRUE' + symbols.
-  # This defends us against a construct like:
-  #
-  #    for (x in pkgs)
-  #        library(x, character.only = TRUE)
-  #
-  if ("character.only" %in% names(matched)) {
-    if (is.symbol(matched[["package"]])) {
-      return()
+  if (fnString %in% liberalLoaders) {
+    # Protect against 'character.only = TRUE' + symbols.
+    # This defends us against a construct like:
+    #
+    #    for (x in pkgs)
+    #        library(x, character.only = TRUE)
+    #
+    if (!"character.only" %in% names(matched)) {
+      if (anyOf(matched[["package"]], is.character, is.symbol)) {
+        pkg <- as.character(matched[["package"]])
+        env[[pkg]] <- TRUE
+        return()
+      }
     }
   }
 
-  if (anyOf(matched[["package"]], is.symbol, is.character)) {
+  if (anyOf(matched[["package"]], is.character)) {
     pkg <- as.character(matched[["package"]])
     env[[pkg]] <- TRUE
     return()
   }
-
-
 }
 
 expressionDependencies <- function(e) {
@@ -628,6 +622,81 @@ fileDependencies.Rmd.evaluate <- function(file) {
     error = identity
   )
   unlink(outfile)
+
+  unique(unlist(deps, recursive = TRUE))
+}
+
+
+
+
+# Extract dependencies per chunk rather than per file.
+# Packages like learnr have special R code chunks that are not evaluated at run time.
+# While the .Rmd file can be rendered with rmarkdown, a raw tangled R file may not be able to be processed.
+fileDependencies.Rmd.tangle <- function(file, encoding = "UTF-8") {
+
+  # discovered packages
+  deps <- list()
+
+  # unique key (line) to split R code with
+  key <- paste0("###--packrat-", paste0(sample(letters, 10, replace = TRUE), collapse = ""), "\n")
+
+  # rudely override knitr's 'label_code' function so
+  # that we can detect dependencies within inline chunks
+  knitr <- asNamespace("knitr")
+  if (exists("label_code", envir = knitr)) {
+    label_code <- yoink("knitr", "label_code")
+    do.call("unlockBinding", list("label_code", knitr))
+    assign("label_code", function(...) {
+      # paste a known key to split the code chunks by
+      paste0(key, label_code(...))
+    }, envir = knitr)
+
+    on.exit({
+      assign("label_code", label_code, envir = knitr)
+      do.call("lockBinding", list("label_code", knitr))
+    }, add = TRUE)
+  }
+
+  # tangle out file
+  outfile <- tempfile()
+  on.exit({
+    unlink(outfile)
+  }, add = TRUE)
+
+  # attempt to tangle document with our custom hook active
+  tryCatch(silent(
+    knitr::purl(
+      file,
+      output = outfile, # tangled file location
+      quiet = TRUE,
+
+      # `An integer specifying the level of documentation to add
+      # to the tangled script. 1L (the default) means to add
+      # the chunk headers to the code`
+      documentation = 1L,
+      encoding = encoding
+    )
+ ), error = function(e) {
+   message("Unable to tangle file '", file, "'; cannot parse dependencies")
+   character()
+ })
+
+  if (!file.exists(outfile)) {
+    # nothing was created
+    return(NULL)
+  }
+
+  stripAltEngines(outfile, encoding)
+
+  # parse each r chunk independently to retrieve dependencies
+  # allows for some chunks to be _broken_ but not stop retrieving dependencies
+  r_chunks <- strsplit(paste0(readLines(outfile), collapse = "\n"), key)[[1]]
+  for(r_chunk in r_chunks) {
+    try(silent = TRUE, {
+      parsed <- parse(text = r_chunk, encoding = encoding)
+      deps <- c(deps, expressionDependencies(parsed))
+    })
+  }
 
   unique(unlist(deps, recursive = TRUE))
 }

@@ -1,3 +1,26 @@
+
+sprintf <- function(fmt, ...) {
+
+  dots <- eval(substitute(alist(...)))
+  if (length(dots) == 0)
+    return(fmt)
+
+  base::sprintf(fmt, ...)
+
+}
+
+stopf <- function(fmt = "", ..., call. = FALSE) {
+  stop(sprintf(fmt, ...), call. = call.)
+}
+
+warningf <- function(fmt = "", ..., call. = FALSE, immediate. = FALSE) {
+  warning(sprintf(fmt, ...), call. = call., immediate. = immediate.)
+}
+
+messagef <- function(fmt = "", ..., appendLF = TRUE) {
+  message(sprintf(fmt, ...), appendLF = appendLF)
+}
+
 silent <- function(expr) {
   suppressWarnings(suppressMessages(
     capture.output(result <- eval(expr, envir = parent.frame()))
@@ -484,12 +507,6 @@ loadedNamespacePaths <- function() {
   result
 }
 
-# Work around namespace:stats potentially not being loaded
-setNames <- function(object = nm, nm) {
-  names(object) <- nm
-  object
-}
-
 # Drop null values in a list
 dropNull <- function(x) {
   Filter(Negate(is.null), x)
@@ -695,4 +712,22 @@ quietly <- function(expr) {
 
 onError <- function(default, expr) {
   tryCatch(expr, error = function(e) default)
+}
+
+# logger
+logTimestamper <- function() {
+  paste("[", as.character(Sys.time()), " packrat]", sep = "")
+}
+
+timestampedLog <- function(...) {
+  cat(paste(logTimestamper(), ..., "\n"))
+}
+
+# Returns a logging function when enabled, a noop function otherwise.
+verboseLogger <- function(verbose) {
+  if (verbose) {
+    timestampedLog
+  } else {
+    function(...) {}
+  }
 }
