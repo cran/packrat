@@ -109,7 +109,7 @@ dirDependencies <- function(dir) {
   dir <- normalizePath(dir, winslash = '/')
 
   # first get the packages referred to in source code
-  pattern <- "[.](?:r|rmd|rnw|rpres)$"
+  pattern <- "[.](?:r|rmd|qmd|rnw|rpres)$"
   pkgs <- character()
   R_files <- list.files(dir,
                         pattern = pattern,
@@ -168,6 +168,7 @@ fileDependencies <- function(file) {
   switch(fileext,
          r = fileDependencies.R(file),
          rmd = fileDependencies.Rmd(file),
+         qmd = fileDependencies.Qmd(file),
          rnw = fileDependencies.Rnw(file),
          rpres = fileDependencies.Rpres(file),
          stop("Unrecognized file type '", file, "'")
@@ -180,10 +181,12 @@ hasYamlFrontMatter <- function(content) {
 }
 
 yamlDeps <- function(yaml) {
-  c(
+  unique(c(
     "shiny"[any(grepl("runtime:[[:space:]]*shiny", yaml, perl = TRUE))],
+    "shiny"[any(grepl("server:[[:space:]]*shiny", yaml, perl = TRUE))],
+    "shiny"[any(grepl("[[:space:]]+type:[[:space:]]*shiny", yaml, perl = TRUE))],
     "rticles"[any(grepl("rticles::", yaml, perl = TRUE))]
-  )
+  ))
 }
 
 stripAltEngines <- function(file, encoding) {
@@ -208,9 +211,27 @@ stripAltEngines <- function(file, encoding) {
   writeLines(contents[regions], file)
 }
 
-fileDependencies.Rmd <- function(file) {
+# compute package dependencies for an *.qmd file. not all Quarto documents
+# require R/rmarkdown.
+#
+# Quarto/rsconnect may independently indicate that this file needs the knitr
+# engine and will communicate an implicit dependency on rmarkdown
+fileDependencies.Qmd <- function(file) {
+  fileDependencies.Markdown(file, implicit = NULL)
+}
 
-  deps <- "rmarkdown"
+# compute package dependencies for an *.Rmd file. rmarkdown is an automatic,
+# implicit dependency.
+fileDependencies.Rmd <- function(file) {
+  fileDependencies.Markdown(file, implicit = c("rmarkdown"))
+}
+
+fileDependencies.Markdown <- function(file, implicit = NULL) {
+
+  deps <- c()
+  if (!is.null(implicit)) {
+    deps <- c(deps, implicit)
+  }
 
   # try using an evaluate-based approach for dependencies
   if (knitrHasEvaluateHook()) {
@@ -229,7 +250,7 @@ fileDependencies.Rmd <- function(file) {
       }
 
       # render with a custom evaluate hook to discover dependencies
-      deps <- c(deps, fileDependencies.Rmd.evaluate(file))
+      deps <- c(deps, fileDependencies.evaluate(file))
     }
   }
 
@@ -313,7 +334,7 @@ fileDependencies.Rmd <- function(file) {
   if (requireNamespace("knitr", quietly = TRUE)) {
     deps <- c(
       deps,
-      fileDependencies.Rmd.tangle(file, encoding = encoding)
+      fileDependencies.tangle(file, encoding = encoding)
     )
   } else {
     warning("knitr is required to parse dependencies but is not available")
@@ -390,7 +411,7 @@ allOf <- function(object, ...) {
 
 recursiveWalk <- function(`_node`, fn, ...) {
   fn(`_node`, ...)
-  if (is.call(`_node`)) {
+  if (is.recursive(`_node`)) {
     for (i in seq_along(`_node`)) {
       recursiveWalk(`_node`[[i]], fn, ...)
     }
@@ -471,7 +492,6 @@ identifyPackagesUsed <- function(call, env) {
 }
 
 expressionDependencies <- function(e) {
-
   if (is.expression(e)) {
     return(unlist(lapply(e, function(call) {
       expressionDependencies(call)
@@ -572,10 +592,24 @@ knitrHasEvaluateHook <- function() {
 }
 
 
-fileDependencies.Rmd.evaluate <- function(file) {
+fileDependencies.evaluate <- function(file) {
 
   # discovered packages (to be updated by evaluate hook)
   deps <- list()
+
+  # override any existing engines -- we don't want dependency discovery
+  # to, say, run arbitrary bash scripts contained in the document!
+  engines <- knitr::knit_engines$get()
+  on.exit(knitr::knit_engines$restore(engines), add = TRUE)
+
+  # generate overrides
+  overrides <- replicate(length(engines), function(options) {}, FALSE)
+  names(overrides) <- names(engines)
+
+  # retain the regular R knitr hook, and treat Rscript chunks
+  # the same way as "regular" R chunks
+  overrides$R <- overrides$Rscript <- engines$R
+  knitr::knit_engines$set(overrides)
 
   # save old hook and install our custom hook
   evaluate_hook <- knitr::knit_hooks$get("evaluate")
@@ -586,6 +620,11 @@ fileDependencies.Rmd.evaluate <- function(file) {
       deps <<- c(deps, expressionDependencies(parsed))
     })
   })
+
+  # keep going on error
+  chunkOptions <- knitr::opts_chunk$get()
+  on.exit(knitr::opts_chunk$restore(chunkOptions), add = TRUE)
+  knitr::opts_chunk$set(error = TRUE)
 
   # rudely override knitr's 'inline_exec' function so
   # that we can detect dependencies within inline chunks
@@ -616,12 +655,28 @@ fileDependencies.Rmd.evaluate <- function(file) {
   }
 
   # attempt to render document with our custom hook active
+  # TODO: do we want to report errors here? right now we're just
+  # capturing and silently discarding render errors
   outfile <- tempfile()
+  on.exit(unlink(outfile), add = TRUE)
+
   tryCatch(
-    rmarkdown::render(file, output_file = outfile, quiet = TRUE),
+    withCallingHandlers(
+      rmarkdown::render(file, output_file = outfile, quiet = TRUE),
+      warning = function(w) {
+
+        # ignore warnings emitted by knitr::get_engine()
+        get_engine <- yoink("knitr", "get_engine")
+        for (i in seq_len(sys.nframe())) {
+          fn <- sys.function(i)
+          if (identical(fn, get_engine))
+            invokeRestart("muffleWarning")
+        }
+
+      }
+    ),
     error = identity
   )
-  unlink(outfile)
 
   unique(unlist(deps, recursive = TRUE))
 }
@@ -632,7 +687,7 @@ fileDependencies.Rmd.evaluate <- function(file) {
 # Extract dependencies per chunk rather than per file.
 # Packages like learnr have special R code chunks that are not evaluated at run time.
 # While the .Rmd file can be rendered with rmarkdown, a raw tangled R file may not be able to be processed.
-fileDependencies.Rmd.tangle <- function(file, encoding = "UTF-8") {
+fileDependencies.tangle <- function(file, encoding = "UTF-8") {
 
   # discovered packages
   deps <- list()

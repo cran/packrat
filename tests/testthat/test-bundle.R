@@ -1,9 +1,8 @@
-context("Bundle")
-
 test_that("Bundle works when using R's internal tar", {
 
   skip_on_cran()
   skip_on_travis()
+  skip_on_ci()
   scopeTestContext()
 
   # force packrat to use the internal R tar
@@ -25,6 +24,7 @@ test_that("Bundle works when omitting CRAN packages", {
 
   skip_on_cran()
   skip_on_travis()
+  skip_on_ci()
   scopeTestContext()
 
   checker <- function() {
