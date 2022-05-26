@@ -2,7 +2,7 @@ Package: packrat
 Type: Package
 Title: A Dependency Management System for Projects and their R Package
         Dependencies
-Version: 0.7.0
+Version: 0.8.0
 Author: Kevin Ushey, Jonathan McPherson, Joe Cheng, Aron Atkins, JJ Allaire
 Maintainer: Aron Atkins <aron@rstudio.com>
 Description: Manage the R packages your project depends
@@ -17,6 +17,6 @@ RoxygenNote: 7.1.1
 Encoding: UTF-8
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2021-08-19 20:08:05 UTC; aron
+Packaged: 2022-05-25 17:48:20 UTC; aron
 Repository: CRAN
-Date/Publication: 2021-08-20 15:20:02 UTC
+Date/Publication: 2022-05-26 18:30:02 UTC
