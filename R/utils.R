@@ -95,7 +95,7 @@ dir_copy <- function(from, to, overwrite = FALSE, all.files = TRUE,
     if (overwrite) {
       unlink(to, recursive = TRUE)
     } else {
-      stop(paste( sep = "",
+      stop(paste(sep = "",
                   if (is_dir(to)) "Directory" else "File",
                   " already exists at path '", to, "'."
       ))
@@ -535,6 +535,10 @@ symlink <- function(from, to) {
   file.exists(to)
 }
 
+nullfile <- function() {
+  if (is.windows()) "NUL" else "/dev/null"
+}
+
 with_dir <- function(dir, expr) {
   owd <- getwd()
   setwd(dir)
@@ -618,22 +622,6 @@ defer <- function(expr, envir = parent.frame()) {
   do.call(base::on.exit, list(substitute(call), add = TRUE), envir = envir)
 }
 
-isUsingExternalTar <- function() {
-
-  TAR <- Sys.getenv("TAR")
-
-  if (!nzchar(TAR))
-    return(FALSE)
-
-  if (!nzchar(Sys.which(TAR)))
-    return(FALSE)
-
-  if (identical(TAR, "internal"))
-    return(FALSE)
-
-  TRUE
-}
-
 join <- function(..., sep = "", collapse = NULL) {
   paste(..., sep = sep, collapse = collapse)
 }
@@ -656,6 +644,10 @@ packageVersionInstalled <- function(...) {
     result <- try(packageVersion(package), silent = TRUE)
     !inherits(result, "try-error") && result >= version
   })
+}
+
+canUseHttr <- function() {
+  packageVersionInstalled(httr = "1.0.0")
 }
 
 packratOption <- function(envName, optionName, defaultValue) {

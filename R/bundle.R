@@ -7,6 +7,8 @@
 #' restores the project as well), \R's own \code{utils::\link{untar}}, or
 #' through most system \code{tar} implementations.
 #'
+#' The tar binary is selected using the same heuristic as \code{\link{restore}}.
+#'
 #' @param project The project directory. Defaults to the currently activate
 #'  project. By default, the current project active under \code{packratMode}
 #'  is checked.
@@ -126,7 +128,7 @@ bundle <- function(project = NULL,
     tarfile = file,
     files = basename(project),
     compression = "gzip",
-    tar = "internal",
+    tar = tar_binary(),
     ...
   )
 
@@ -177,7 +179,7 @@ unbundle <- function(bundle, where, ..., restore = TRUE) {
 
   whereFiles <- list.files()
   message("- Untarring '", basename(bundle), "' in directory '", where, "'...")
-  untar(bundle, exdir = where, tar = "internal", ...)
+  untar(bundle, exdir = where, tar = tar_binary(), ...)
   dirName <- normalizePath(setdiff(list.files(), whereFiles), winslash = "/", mustWork = TRUE)
 
   if (restore) {

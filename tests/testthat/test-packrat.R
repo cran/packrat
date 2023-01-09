@@ -28,7 +28,7 @@ withTestContext({
     skip_on_cran()
     projRoot <- cloneTestProject("sated")
     init(enter = FALSE, projRoot, options = list(local.repos = "packages"),
-         infer.dependencies=FALSE)
+         infer.dependencies = FALSE)
     lib <- libDir(projRoot)
     expect_true(file.exists(lockFilePath(projRoot)))
     expect_true(file.exists(srcDir(projRoot)))
@@ -137,7 +137,7 @@ withTestContext({
     skip_on_cran()
     projRoot <- cloneTestProject("partlyignored")
     lib <- libDir(projRoot)
-    init(enter = FALSE, projRoot, options = list(ignored.directories="ignoreme"))
+    init(enter = FALSE, projRoot, options = list(ignored.directories = "ignoreme"))
 
     # This test project has a file called notignored.R that depends on bread, and
     # another file called ignoreme/ignorethis.R that depends on toast.
@@ -277,6 +277,7 @@ withTestContext({
 
   test_that("Packages restored from GitLab have RemoteType+RemoteHost in their DESCRIPTION", {
     skip_on_cran()
+    skip_on_os("windows") # Windows tar.exe fails to extract the archive received here.
     projRoot <- cloneTestProject("falsy-gitlab")
 
     # ignore R version warnings

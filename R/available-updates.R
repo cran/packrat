@@ -87,7 +87,7 @@ bitbucketUpdates <- function(lib.loc = .libPaths()) {
     })
     names(DESCRIPTIONS) <- pkgs
     DESCRIPTIONS <-
-      Filter(function(x) "RemoteType" %in% colnames(x) && x[,"RemoteType"] == "bitbucket", DESCRIPTIONS)
+      Filter(function(x) "RemoteType" %in% colnames(x) && x[, "RemoteType"] == "bitbucket", DESCRIPTIONS)
     if (!length(DESCRIPTIONS)) return(NULL)
     if (!requireNamespace("httr")) stop("Need package 'httr' to check for Bitbucket updates")
     do.call(rbind, enumerate(DESCRIPTIONS, function(x) {
@@ -152,15 +152,15 @@ gitlabUpdates <- function(lib.loc = .libPaths()) {
     names(DESCRIPTIONS) <- pkgs
     DESCRIPTIONS <-
       Filter(function(x) "RemoteType" %in% colnames(x) &&
-               x[,"RemoteType"] == "gitlab", DESCRIPTIONS)
+               x[, "RemoteType"] == "gitlab", DESCRIPTIONS)
     if (!length(DESCRIPTIONS)) return(NULL)
     if (!requireNamespace("httr")) stop("Need package 'httr' to check for Gitlab updates")
     do.call(rbind, enumerate(DESCRIPTIONS, function(x) {
       url <- file.path("https://gitlab.com/",
                        "api/v4/projects/",
-                       paste0(x[, "RemoteUsername"],
-                              "%2F",
-                              x[, "RemoteRepo"]),
+                       URLencode(paste0(x[, "RemoteUsername"],
+                              "/",
+                              x[, "RemoteRepo"]), reserved = TRUE),
                        "repository",
                        "archive.tar.gz")
       response <- httr::GET(url)
