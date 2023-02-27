@@ -1,24 +1,38 @@
-Package: packrat
 Type: Package
+Package: packrat
 Title: A Dependency Management System for Projects and their R Package
         Dependencies
-Version: 0.9.0
-Author: Kevin Ushey, Jonathan McPherson, Joe Cheng, Aron Atkins, JJ Allaire,
-    Toph Allen
-Maintainer: Aron Atkins <aron@posit.co>
-Description: Manage the R packages your project depends
-    on in an isolated, portable, and reproducible way.
+Version: 0.9.1
+Authors@R: c(
+    person("Aron", "Atkins", , "aron@posit.co", role = c("aut", "cre")),
+    person("Toph", "Allen", role = "aut"),
+    person("Kevin", "Ushey", role = "aut"),
+    person("Jonathan", "McPherson", role = "aut"),
+    person("Joe", "Cheng", role = "aut"),
+    person("JJ", "Allaire", role = "aut"),
+    person("Posit Software, PBC", role = c("cph", "fnd"))
+  )
+Description: Manage the R packages your project depends on in an isolated,
+    portable, and reproducible way.
 License: GPL-2
-Depends: R (>= 3.0.0)
-Imports: tools, utils
-Suggests: testthat (>= 3.0.0), devtools, httr, knitr, mockery,
-        rmarkdown
 URL: https://github.com/rstudio/packrat/
 BugReports: https://github.com/rstudio/packrat/issues
-RoxygenNote: 7.2.1
-Encoding: UTF-8
+Depends: R (>= 3.0.0)
+Imports: tools, utils
+Suggests: devtools, httr, knitr, mockery, rmarkdown, testthat (>=
+        3.0.0)
 Config/testthat/edition: 3
+Encoding: UTF-8
+RoxygenNote: 7.2.1
 NeedsCompilation: no
-Packaged: 2023-01-09 18:28:51 UTC; aron
+Packaged: 2023-02-27 18:08:33 UTC; aron
+Author: Aron Atkins [aut, cre],
+  Toph Allen [aut],
+  Kevin Ushey [aut],
+  Jonathan McPherson [aut],
+  Joe Cheng [aut],
+  JJ Allaire [aut],
+  Posit Software, PBC [cph, fnd]
+Maintainer: Aron Atkins <aron@posit.co>
 Repository: CRAN
-Date/Publication: 2023-01-09 22:40:02 UTC
+Date/Publication: 2023-02-27 18:52:29 UTC

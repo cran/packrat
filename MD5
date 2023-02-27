@@ -1,4 +1,4 @@
-5e4477b8e6225402380e7f0723aa53c5 *DESCRIPTION
+0e2648aa3026bf838f2b990559e4166d *DESCRIPTION
 68b2e6e1a0576545e864883209a52387 *NAMESPACE
 f7605480c8640975ae1ef30de805d88c *R/aaa-globals.R
 93425f6b0e493e121fb325aeda3e1c3f *R/augment-rprofile.R
@@ -31,15 +31,16 @@ b7824af94c203209442da312f717f51b *R/options.R
 7a4c40ceb6b8f42e2ebd7bf62e3f6e91 *R/packrat-mode.R
 bda0bcf40594cfd863a76e2b2f2b1455 *R/packrat.R
 99c8719fe51492ceee438bf9414cb6de *R/paths.R
-d04ea0c6b242f1a3a9c6df03d4fc9a1f *R/pkg.R
+8e7ed6dfeb378cd1735578e6eaa6c480 *R/pkg.R
 801164f8a688581ed9382f9117a0d844 *R/platform.R
 4ded567b978ae76cf35db714a179e0d8 *R/pretty-print.R
 569c4c36f965955d8cf887cf72ee3f02 *R/r-hooks.R
 e095eab068811896ebb349e87be70c69 *R/read-lock-file.R
 198bb6a81c968faf5a3c7bb0194f642a *R/recursive-package-dependencies.R
+7acff827ac4f0e1e0b6ffc3286813d0a *R/remote-info.R
 87a290c8cdacab5bc2376c0ffaa41e25 *R/renv.R
 b59b3e74c781a83ec42ec33222fcfe6c *R/restore-routines.R
-be77e8afed46c1e97c4a893684578fbe *R/restore.R
+ad31dae54aa6eadd3445106bb5393613 *R/restore.R
 aee2783e46d67af252a64c521e1a76f5 *R/rstudio-protocol.R
 2875f900853e4cbc72651094e3a1cf60 *R/search-path.R
 7d14b314c7484ab9841ebeacb8e63079 *R/snapshot.R
@@ -48,9 +49,9 @@ aee2783e46d67af252a64c521e1a76f5 *R/rstudio-protocol.R
 4d6b0ff3b7561d856b73da02ec4aa4c2 *R/update.R
 93cb4c972cc90d704fa9543099847199 *R/utils.R
 14e23c2ce997fd13807e30747f136f35 *R/zzz.R
-1461a5f6eac464f97cfa7e7372b5cb66 *README.md
-b95d4ad6896ae390994b636850c2718c *inst/resources/init-rprofile.R
-eeae5aa49d03655f45c655d5e4a55a89 *inst/resources/init.R
+77fa74c6b9d191d22530c95ec2d167b4 *README.md
+9ec960579691d61978bd31bea917b751 *inst/resources/init-rprofile.R
+f7ee2ac922e0fc28674f1358402f591e *inst/resources/init.R
 d561460976514e88a13dc6906d9466db *inst/resources/mac_r_userlib.sh
 926ce3615151aab7b248ef3d569210a5 *inst/resources/renv.R
 4affbb9d61d533e48a8274cdd712a9f8 *inst/rstudio/rstudio-protocol
@@ -85,6 +86,7 @@ b81d577ce3cac1b01b26748ed6d4bea6 *tests/testthat/Ugly, but legal, path for a pro
 700e054b6e32a80c8dcab5dcaa4e60d5 *tests/testthat/Ugly, but legal, path for a project (long)/oatmeal/DESCRIPTION
 6c70d47d06818418de8a62ba55e89326 *tests/testthat/Ugly, but legal, path for a project (long)/packrat/DESCRIPTION
 5b5c76f4e4849a8a7ba8ee493a125dc4 *tests/testthat/Ugly, but legal, path for a project (long)/toast/DESCRIPTION
+afaac71d0571b4dfc93b15873db80547 *tests/testthat/_snaps/pkg.md
 bbf95919533904a68997563891f47f52 *tests/testthat/lockfiles/lockfile-multipleRepos.txt
 6c70d47d06818418de8a62ba55e89326 *tests/testthat/other-packages/packrat/DESCRIPTION
 ed5a74b6ccd53686fc405ec5fe0287b3 *tests/testthat/packages/bread/DESCRIPTION
@@ -116,6 +118,10 @@ bf6fed44bb0513e754e46b10e4ab2e2e *tests/testthat/projects/partlyignored/ignoreme
 6e8dfef23f24b44f23ca91be694e02c7 *tests/testthat/resources/dependencies.qmd
 c51fc227932d77364c6bbdc8bb699cae *tests/testthat/resources/descriptions/falsy.packrat
 df273585283d871edb56757a93adbca5 *tests/testthat/resources/descriptions/falsy.remotes
+b49ba441279ee4ce29e4b3ac41e92995 *tests/testthat/resources/descriptions/github
+38467405b3bb4b474fda4f828f9c8cb0 *tests/testthat/resources/descriptions/github_subdir
+14dcd8256e3b3f84a048273730fa72ab *tests/testthat/resources/descriptions/gitlab
+9d7019b315094534e5f05b08cb2fccc5 *tests/testthat/resources/descriptions/gitlab_subdir
 268b6736c4e14677296e34d643bf0610 *tests/testthat/resources/emoji.R
 6312ea33543606514a199b4a22210424 *tests/testthat/resources/emoji.Rmd
 9f35e681fa91648d33cd15e0b081e543 *tests/testthat/resources/evaluate-deps.Rmd
@@ -145,6 +151,8 @@ f5483843abd80d00e13050f4dc134e89 *tests/testthat/test-hash.R
 b6ff0c6169e7656c345cdf7711c78980 *tests/testthat/test-options.R
 b90c9cd6e3720870a9f62eb80ee6386c *tests/testthat/test-packrat-mode.R
 b377e22c8f42ec0950256fba3da9d032 *tests/testthat/test-packrat.R
+a2bd95ba533f68cfdcf3bc3833280b18 *tests/testthat/test-pkg.R
+9468a8efcc8e843e188fb5d375527a7f *tests/testthat/test-remote-info.R
 e69ab15253ebb9a1d4d59e2f0d5cc9c7 *tests/testthat/test-restore.R
 12f74cb89ac277df5804e036599a0874 *tests/testthat/test-rmarkdown.R
 dacdbad2fff1a486e2ada169f63f184c *tests/testthat/test-shiny.R
