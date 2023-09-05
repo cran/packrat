@@ -1,4 +1,4 @@
-0e2648aa3026bf838f2b990559e4166d *DESCRIPTION
+0e1de87f9524442a9bfeeca7149c6142 *DESCRIPTION
 68b2e6e1a0576545e864883209a52387 *NAMESPACE
 f7605480c8640975ae1ef30de805d88c *R/aaa-globals.R
 93425f6b0e493e121fb325aeda3e1c3f *R/augment-rprofile.R
@@ -9,7 +9,7 @@ caa47458ca9d3f1527daa2e8b3ec6638 *R/available-packages.R
 76081eb9f71722c880bcbbc1410b006c *R/cache.R
 c0e44e191edb46914c749f353a416c7f *R/clean-search-path.R
 4792a45a23016e06e4c5e609cff7200a *R/cranlike-repositories.R
-ce82c14e1d9e3d861f343a63b341d820 *R/dependencies.R
+3e761612bc293e04d5a6d2e71486ca10 *R/dependencies.R
 3b95f2652ca72ed791e878ac8b35a1db *R/descfile.R
 2b0cb2ecb88b7141136b2bd4e446a9c0 *R/disable.R
 29027cd90f54affc02b6be6319c56101 *R/downloader.R
@@ -22,14 +22,14 @@ c1b6f0ab53e77d78167876904d676448 *R/get-package-actions.R
 1e3018c58ddc9215225e75210a389576 *R/hide-site-libraries.R
 20bab6b87909981e29c319fdf3e7d3bf *R/hooks.R
 85300d20a31dd42fa69c8799a9064029 *R/install-local.R
-348ed898528911122f04f52f48c18350 *R/install.R
+4f7a4cb151d23054066962b05c6fae01 *R/install.R
 8d6ab1a896095c11fa1499d0bd613cca *R/library-support.R
 7de17bb0b75b50bc5be63963a5be628e *R/lockfile-metadata.R
 94657889928d9aaaf38a452014afa9d7 *R/lockfile.R
 b7824af94c203209442da312f717f51b *R/options.R
 58dc366ab58c4ba5a38f45cbfd562eb6 *R/package-namespace-helpers.R
 7a4c40ceb6b8f42e2ebd7bf62e3f6e91 *R/packrat-mode.R
-bda0bcf40594cfd863a76e2b2f2b1455 *R/packrat.R
+e554ae995a6099092e65ed923848b2c3 *R/packrat.R
 99c8719fe51492ceee438bf9414cb6de *R/paths.R
 8e7ed6dfeb378cd1735578e6eaa6c480 *R/pkg.R
 801164f8a688581ed9382f9117a0d844 *R/platform.R
@@ -38,9 +38,9 @@ bda0bcf40594cfd863a76e2b2f2b1455 *R/packrat.R
 e095eab068811896ebb349e87be70c69 *R/read-lock-file.R
 198bb6a81c968faf5a3c7bb0194f642a *R/recursive-package-dependencies.R
 7acff827ac4f0e1e0b6ffc3286813d0a *R/remote-info.R
-87a290c8cdacab5bc2376c0ffaa41e25 *R/renv.R
+b043932096b3667ec24e248bb66ba873 *R/renv.R
 b59b3e74c781a83ec42ec33222fcfe6c *R/restore-routines.R
-ad31dae54aa6eadd3445106bb5393613 *R/restore.R
+ce1454ca0be1b7c2989f64d04c92cd11 *R/restore.R
 aee2783e46d67af252a64c521e1a76f5 *R/rstudio-protocol.R
 2875f900853e4cbc72651094e3a1cf60 *R/search-path.R
 7d14b314c7484ab9841ebeacb8e63079 *R/snapshot.R
@@ -48,13 +48,13 @@ aee2783e46d67af252a64c521e1a76f5 *R/rstudio-protocol.R
 202d17388d94d3f157dececf8a02557d *R/testthat-helpers.R
 4d6b0ff3b7561d856b73da02ec4aa4c2 *R/update.R
 93cb4c972cc90d704fa9543099847199 *R/utils.R
-14e23c2ce997fd13807e30747f136f35 *R/zzz.R
+628d2d236568fa39e97e8cfaa0922401 *R/zzz.R
 77fa74c6b9d191d22530c95ec2d167b4 *README.md
-9ec960579691d61978bd31bea917b751 *inst/resources/init-rprofile.R
-f7ee2ac922e0fc28674f1358402f591e *inst/resources/init.R
+7a2aa79f4226e6ae53548253672a4f99 *inst/resources/init-rprofile.R
+6580c76de1406d1de770f058c68559de *inst/resources/init.R
 d561460976514e88a13dc6906d9466db *inst/resources/mac_r_userlib.sh
-926ce3615151aab7b248ef3d569210a5 *inst/resources/renv.R
 4affbb9d61d533e48a8274cdd712a9f8 *inst/rstudio/rstudio-protocol
+efb41cec3faf53971f34e10e5d99b7a4 *inst/vendor/renv.R
 be7d8f2d274b0209994a53a8012dbd43 *man/appDependencies.Rd
 d09ce78e2cbc9af9429e9ef4010e4aff *man/bundle.Rd
 81440d410c7fa3a11ccb3a7a276e7076 *man/clean.Rd
@@ -67,8 +67,8 @@ b3bb5e41145b740603e9a2e382a93452 *man/disable.Rd
 367f519bd6e20366712c941ff06bbfff *man/packrat-external.Rd
 626865715befabed2409a9a3aa53700f *man/packrat-mode.Rd
 af4fb4c6ba6865fe1ba199981ebec9c3 *man/packrat-options.Rd
+a4b91b0502132b6732fbdf2b63bca900 *man/packrat-package.Rd
 ac1af16d07693ac8810b9f3a01acc798 *man/packrat-resources.Rd
-8615855bdcf560dc57e7ccc1c76afd1a *man/packrat.Rd
 2e66e2efaa88cca98c652e0f85f42604 *man/repos_create.Rd
 dde2bfc7f1e42cb6e2b226322ad873c1 *man/repos_upload.Rd
 3cab83905f116f616128526b22f53fd4 *man/repository-management.Rd
@@ -93,7 +93,7 @@ ed5a74b6ccd53686fc405ec5fe0287b3 *tests/testthat/packages/bread/DESCRIPTION
 b81d577ce3cac1b01b26748ed6d4bea6 *tests/testthat/packages/breakfast/DESCRIPTION
 5977869b48003e32552044e6d002b701 *tests/testthat/packages/egg/DESCRIPTION
 700e054b6e32a80c8dcab5dcaa4e60d5 *tests/testthat/packages/oatmeal/DESCRIPTION
-9904b737e3acd3d8a94b20570f60e8b2 *tests/testthat/packages/packrat/DESCRIPTION
+e85edc474bc2e442b920872daa5a6b7e *tests/testthat/packages/packrat/DESCRIPTION
 5b5c76f4e4849a8a7ba8ee493a125dc4 *tests/testthat/packages/toast/DESCRIPTION
 a181b5ff614a9ec41bd69713238c56e3 *tests/testthat/packrat/packrat.opts
 3965e9ae499c25646e7d6f69bae61e95 *tests/testthat/projects/carbs/flour.R
@@ -150,7 +150,7 @@ f5483843abd80d00e13050f4dc134e89 *tests/testthat/test-hash.R
 72bc8f6d1a9378abf91ed583d6acfa2c *tests/testthat/test-lockfile.R
 b6ff0c6169e7656c345cdf7711c78980 *tests/testthat/test-options.R
 b90c9cd6e3720870a9f62eb80ee6386c *tests/testthat/test-packrat-mode.R
-b377e22c8f42ec0950256fba3da9d032 *tests/testthat/test-packrat.R
+9021c89b0c97d5d371e2f8a66465b567 *tests/testthat/test-packrat.R
 a2bd95ba533f68cfdcf3bc3833280b18 *tests/testthat/test-pkg.R
 9468a8efcc8e843e188fb5d375527a7f *tests/testthat/test-remote-info.R
 e69ab15253ebb9a1d4d59e2f0d5cc9c7 *tests/testthat/test-restore.R
@@ -158,4 +158,3 @@ e69ab15253ebb9a1d4d59e2f0d5cc9c7 *tests/testthat/test-restore.R
 dacdbad2fff1a486e2ada169f63f184c *tests/testthat/test-shiny.R
 18eefe2157531b1dc58937e4dcc181c7 *tests/testthat/test-utils.R
 8978372c67bf513aef1f567c177b4568 *tests/testthat/test-with_extlib.R
-03abe3ec8dde1995f87fbee772e823b4 *tools/tools-sync-renv.R
